@@ -767,7 +767,7 @@ function makeFrontScreen(){
   var div=document.createElement('div');
   div.className='tik-screen';
   div.dataset.type='front';
-  div.innerHTML='<div class="tik-front"><span class="tik-front-logo">&#x1F6A9;</span><div class="tik-front-title">Can you spot a <span>red flag?</span></div><div class="tik-front-sub">We show you real texts. You decide before we reveal.</div><div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin:0 auto;"><button class="tik-front-btn" style="background:var(--red);font-size:17px;padding:18px 24px;" onclick="initSituationship()">&#x1F525; The Situationship</button><button class="tik-front-btn" style="background:#1a1a1a;border:1.5px solid #333;font-size:17px;padding:18px 24px;" onclick="tikAdvance(event)">&#x1F3B2; Random flags</button></div><div class="tik-front-tap">tap to choose</div></div>';
+  div.innerHTML='<div class="tik-front"><span class="tik-front-logo">&#x1F6A9;</span><div class="tik-front-title">Can you spot a <span>red flag?</span></div><div class="tik-front-sub">We show you real texts. You decide before we reveal.</div><div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin:0 auto;"><button class="tik-front-btn" style="background:var(--red);font-size:16px;padding:16px 20px;" onclick="event.stopPropagation();initSituationship()">&#x1F525; The Situationship</button><button class="tik-front-btn" style="background:#1a1a1a;border:1.5px solid #444;font-size:16px;padding:16px 20px;" onclick="event.stopPropagation();initBreadcrumbing()">&#x1F35E; The Breadcrumber</button><button class="tik-front-btn" style="background:#1a1a1a;border:1.5px solid #444;font-size:16px;padding:16px 20px;" onclick="event.stopPropagation();initHoovering()">&#x1F9F9; The Hoover</button><button class="tik-front-btn" style="background:#111;border:1.5px solid #333;font-size:16px;padding:16px 20px;" onclick="event.stopPropagation();tikAdvance(event)">&#x1F3B2; Random flags</button></div><div class="tik-front-tap">tap to choose</div></div>';
   return div;
 }
 
@@ -880,6 +880,7 @@ function getEndScreenHtml(){
 var normalStr = 'normal';
 
 // SITUATIONSHIP VIRAL SEQUENCE
+var currentSeq;
 var SITU_SEQ = [
 
   {t:'raw', lines:[
@@ -945,6 +946,115 @@ var SITU_SEQ = [
    a:'Yes. I would have stayed.',
    b:'No. I would have left.',
    sting:'Most people stayed. That is the problem.'}
+];
+
+
+var BREADCRUMB_SEQ = [
+  {t:'raw', lines:['They never fully show up.', 'But they never fully leave either.']},
+
+  {t:'msg', name:'Riley', txt:'Hey you. Been thinking about you'},
+
+  {t:'interrupt', style:'doubt',
+   q:'When did they last text you before this?',
+   sub:'Think about it. Comment below.'},
+
+  {t:'you', txt:'It has been 3 weeks. Where have you been?'},
+
+  {t:'msg', name:'Riley', txt:'I know I know. Life has been crazy. Miss you though'},
+
+  {t:'interrupt', style:'reframe',
+   q:'They disappear. Then reappear just before you move on.',
+   sub:'Coincidence... or calculation?'},
+
+  {t:'you', txt:'Are you actually interested or are you just bored?'},
+
+  {t:'msg', name:'Riley', txt:'Why do you always do this. Can we not just enjoy the moment'},
+
+  {t:'interrupt', style:'predict',
+   q:'Read that again.',
+   sub:'They just made your valid question into your problem.'},
+
+  {t:'decision',
+   q:'What do you do?',
+   opts:['Give them another chance', 'Call it out or walk away'],
+   tags:['self_abandon','boundary'],
+   correct:'B',
+   cta:'Answer in the comments before we reveal!'},
+
+  {t:'msg', name:'Riley', txt:'You stress me out sometimes. I just wanted to say hi'},
+
+  {t:'raw', lines:['"I just wanted to say hi."', 'After 3 weeks of silence.']},
+
+  {t:'verdict_a',
+   hook:'You accepted the crumbs.',
+   truth:'They did not come back because they missed you. They came back because they sensed you were moving on. Every time you responded, you taught them that disappearing has no consequences. You were not a priority. You were a backup plan.',
+   tags:[{txt:'Kept on hold',c:'r'},{txt:'Breadcrumbing',c:'r'},{txt:'Your time wasted',c:'r'}],
+   ignored_msg:'You missed it.'},
+
+  {t:'verdict_b',
+   hook:'You stopped accepting crumbs.',
+   truth:'They were not busy. They were keeping their options open. The moment you stopped being available, you became interesting again. That is not love. That is game theory.',
+   tags:[{txt:'Pattern spotted',c:'g'},{txt:'Boundary held',c:'g'},{txt:'Self-respect',c:'g'}]},
+
+  {t:'stay',
+   q:'Be honest... would you have replied?',
+   a:'Yes. I would have replied.',
+   b:'No. I would have left them on read.',
+   sting:'Most people replied. They were counting on it.'}
+];
+
+var HOOVER_SEQ = [
+  {t:'raw', lines:['You finally moved on.', 'Then this arrived.']},
+
+  {t:'msg', name:'Sam', txt:'I know I have no right to message you. But I cannot stop thinking about us'},
+
+  {t:'interrupt', style:'doubt',
+   q:'Why now?',
+   sub:'You were fine until this message. Comment what you think before we continue.'},
+
+  {t:'you', txt:'It has been 6 months Sam. What do you want?'},
+
+  {t:'msg', name:'Sam', txt:'I have changed. I know I hurt you. I just need you to know I am sorry'},
+
+  {t:'interrupt', style:'reframe',
+   q:'They are sorry.',
+   sub:'But sorry for what, exactly? And why tell you now?'},
+
+  {t:'you', txt:'Why are you telling me this now?'},
+
+  {t:'msg', name:'Sam', txt:'Because I saw you moved on and I panicked. You deserve to know how I feel'},
+
+  {t:'interrupt', style:'predict',
+   q:'They did not miss you.',
+   sub:'They missed having you available. There is a difference.'},
+
+  {t:'decision',
+   q:'What do you do?',
+   opts:['Hear them out. Maybe they have changed.', 'Thank them and close the door.'],
+   tags:['self_abandon','boundary'],
+   correct:'B',
+   cta:'Answer in the comments before we reveal!'},
+
+  {t:'msg', name:'Sam', txt:'I just thought you should know. I still love you'},
+
+  {t:'raw', lines:['They love you.', 'They just love you more', 'when you are unavailable.']},
+
+  {t:'verdict_a',
+   hook:'You got hoovered back in.',
+   truth:'This is called hoovering. Like a vacuum, they suck you back the moment you try to leave. The apology was real enough to feel genuine. The timing was not an accident. They did not reach out because they changed. They reached out because you stopped waiting.',
+   tags:[{txt:'Hoovering',c:'r'},{txt:'Timed perfectly',c:'r'},{txt:'Manufactured urgency',c:'r'}],
+   ignored_msg:'You missed it.'},
+
+  {t:'verdict_b',
+   hook:'You did not take the bait.',
+   truth:'The message was designed to reopen a door you finally closed. Hoovering works because it targets your hope, not your logic. You chose your peace over their panic. That is the harder choice. And the right one.',
+   tags:[{txt:'Pattern recognised',c:'g'},{txt:'Peace protected',c:'g'},{txt:'Door closed',c:'g'}]},
+
+  {t:'stay',
+   q:'Be honest... would you have replied?',
+   a:'Yes. I would have replied.',
+   b:'No. I would have left it.',
+   sting:'Most people replied. That is exactly what they were counting on.'}
 ];
 
 function buildSituScreen(item){
@@ -1027,10 +1137,31 @@ function buildSituScreen(item){
 var situIdx=-1;
 var userChoice=null;
 var correctChoice="A";
-function initSituationship(){
-  situIdx=-1;
+
+function initBreadcrumbing(){
+  situIdx=-1; userChoice=null; correctChoice='B';
   var deck=document.getElementById('tikDeck');
-  deck.innerHTML='';
+  var newDeck=deck.cloneNode(false);
+  deck.parentNode.replaceChild(newDeck,deck);
+  currentSeq=BREADCRUMB_SEQ;
+  advanceSitu();
+}
+
+function initHoovering(){
+  situIdx=-1; userChoice=null; correctChoice='B';
+  var deck=document.getElementById('tikDeck');
+  var newDeck=deck.cloneNode(false);
+  deck.parentNode.replaceChild(newDeck,deck);
+  currentSeq=HOOVER_SEQ;
+  advanceSitu();
+}
+
+function initSituationship(){
+  situIdx=-1; userChoice=null; correctChoice='B';
+  currentSeq=SITU_SEQ;
+  var deck=document.getElementById('tikDeck');
+  var newDeck=deck.cloneNode(false);
+  deck.parentNode.replaceChild(newDeck,deck);
   advanceSitu();
 }
 
@@ -1064,18 +1195,18 @@ function advanceSitu(){
   var cur=deck.querySelector('.tik-screen:not(.hidden):not(.exit)');
   if(cur){cur.classList.add('exit');setTimeout(function(){if(cur&&cur.parentNode)cur.parentNode.removeChild(cur);},320);}
   situIdx++;
-  if(situIdx>=SITU_SEQ.length){
+  if(situIdx>=currentSeq.length){
     tikIdx=-1;
     tikAdvance(null);
     return;
   }
-  var next=buildSituScreen(SITU_SEQ[situIdx]);
+  var next=buildSituScreen(currentSeq[situIdx]);
   if(next.className==='tik-screen hidden-skip'){advanceSitu();return;}
   next.classList.add('hidden');
   deck.appendChild(next);
   setTimeout(function(){
     next.classList.remove('hidden');
-    if(SITU_SEQ[situIdx].t==='interrupt'){
+    if(currentSeq[situIdx].t==='interrupt'){
       next.classList.add('interrupt-active');
       var flash=next.querySelector('#tikFlashOverlay');
       if(flash){
@@ -1086,9 +1217,9 @@ function advanceSitu(){
   },20);
   next.addEventListener('click',function(e){e.stopPropagation();advanceSitu();});
   var fill=document.getElementById('tikProgFill');
-  if(fill)fill.style.width=Math.round(((situIdx+1)/SITU_SEQ.length)*100)+'%';
+  if(fill)fill.style.width=Math.round(((situIdx+1)/currentSeq.length)*100)+'%';
   var ctr=document.getElementById('tikCounter');
-  if(ctr)ctr.textContent=(situIdx+1)+' / '+SITU_SEQ.length;
+  if(ctr)ctr.textContent=(situIdx+1)+' / '+currentSeq.length;
 }
 
 function initTikMode(){
