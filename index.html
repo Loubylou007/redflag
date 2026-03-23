@@ -767,7 +767,7 @@ function makeFrontScreen(){
   var div=document.createElement('div');
   div.className='tik-screen';
   div.dataset.type='front';
-  div.innerHTML='<div class="tik-front"><span class="tik-front-logo">&#x1F6A9;</span><div class="tik-front-title">Can you spot a <span>red flag?</span></div><div class="tik-front-sub">We show you real texts. You decide if it is a red flag before we reveal. Can you tell the difference?</div><button class="tik-front-btn" onclick="tikAdvance(event)">Let us go &#x2192;</button><div class="tik-front-tap">Tap anywhere to start</div></div>';
+  div.innerHTML='<div class="tik-front"><span class="tik-front-logo">&#x1F6A9;</span><div class="tik-front-title">Can you spot a <span>red flag?</span></div><div class="tik-front-sub">We show you real texts. You decide before we reveal.</div><div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin:0 auto;"><button class="tik-front-btn" style="background:var(--red);font-size:17px;padding:18px 24px;" onclick="initSituationship()">&#x1F525; The Situationship</button><button class="tik-front-btn" style="background:#1a1a1a;border:1.5px solid #333;font-size:17px;padding:18px 24px;" onclick="tikAdvance(event)">&#x1F3B2; Random flags</button></div><div class="tik-front-tap">tap to choose</div></div>';
   return div;
 }
 
@@ -882,46 +882,69 @@ var normalStr = 'normal';
 // SITUATIONSHIP VIRAL SEQUENCE
 var SITU_SEQ = [
 
-  {t:'raw', lines:['It has been 4 months.', 'And you still do not know what you are.']},
+  {t:'raw', lines:[
+    '4 months.',
+    'Still no label.'
+  ]},
 
-  {t:'you', txt:'Can we talk about what we actually are?'},
+  {t:'you', txt:'It has been 4 months and I still do not know if I am single or not'},
 
-  {t:'msg', name:'Jordan', txt:'Why do we need a label?'},
+  {t:'msg', name:'Jordan', txt:'Why are you trying to ruin something good?'},
 
-  {t:'interrupt', style:'doubt', q:'Is that a fair question... or an avoidance?', sub:'Answer in the comments before we go further.'},
+  {t:'interrupt', style:'doubt',
+   q:'Are they confused... or keeping you available?',
+   sub:'Answer in the comments before we continue.'},
 
-  {t:'you', txt:'Because I do not know if I should be seeing other people'},
+  {t:'you', txt:'I just need to know where this is going'},
 
-  {t:'msg', name:'Jordan', txt:'Do what you want'},
+  {t:'msg', name:'Jordan', txt:'You are so needy sometimes. Not everything needs a label'},
 
-  {t:'interrupt', style:'reframe', q:'Sounds freeing...', sub:'Or is it designed to keep you confused?'},
+  {t:'interrupt', style:'reframe',
+   q:'Needy... or asking for basic clarity?',
+   sub:'Who actually has the problem here?'},
 
-  {t:'you', txt:'Do you even want this to go somewhere?'},
+  {t:'you', txt:'So should I be talking to other people or not?'},
 
-  {t:'msg', name:'Jordan', txt:'You are putting pressure on this'},
+  {t:'msg', name:'Jordan', txt:'Do what you want. I cannot control you'},
+
+  {t:'interrupt', style:'predict',
+   q:'"Do what you want" is not freedom.',
+   sub:'It is a trap. Comment what you think before we reveal.'},
 
   {t:'decision',
    q:'What do you do next?',
-   opts:['Okay, let us just go with the flow', 'No. I need clarity or I am out'],
-   tags:['self_abandon', 'boundary'],
+   opts:[
+     'Stay and hope it changes',
+     'Ask for clarity or leave'
+   ],
+   tags:['self_abandon','boundary'],
    correct:'B',
    cta:'Answer in the comments before we reveal!'},
 
   {t:'verdict_a',
-   hook:'You ignored it.',
-   truth:'You chose comfort over clarity. They did not avoid the label by accident. They avoided responsibility. And you agreed to it.',
-   tags:[{txt:'Avoidance accepted',c:'r'},{txt:'Clarity denied',c:'r'},{txt:'Time wasted',c:'r'}]},
+   hook:'You stayed available.',
+   truth:'They did not avoid labels. They avoided responsibility. Every time you accepted the ambiguity, you taught them it was acceptable. You did not lose them. You lost yourself — slowly, over 4 months.',
+   tags:[
+     {txt:'No commitment',c:'r'},
+     {txt:'Emotional limbo',c:'r'},
+     {txt:'Time leaked',c:'r'}
+   ],
+   ignored_msg:'You missed it.'},
 
   {t:'verdict_b',
-   hook:'You saw it.',
-   truth:'They were not confused. They were comfortable. The moment you asked for clarity — you became the problem.',
-   tags:[{txt:'Boundary set',c:'g'},{txt:'Power regained',c:'g'},{txt:'You clocked it',c:'g'}]},
+   hook:'You forced clarity.',
+   truth:'The moment you asked for commitment, you stopped being convenient. That is not pressure. That is self-respect. They were never confused. They were comfortable. You just stopped being easy.',
+   tags:[
+     {txt:'Boundary set',c:'g'},
+     {txt:'Self-respect',c:'g'},
+     {txt:'Power shift',c:'g'}
+   ]},
 
   {t:'stay',
-   q:'Be honest. Would you have stayed?',
-   a:'Yes',
-   b:'No',
-   sting:'Most people said yes.'}
+   q:'Be honest... would you have stayed?',
+   a:'Yes. I would have stayed.',
+   b:'No. I would have left.',
+   sting:'Most people stayed. That is the problem.'}
 ];
 
 function buildSituScreen(item){
