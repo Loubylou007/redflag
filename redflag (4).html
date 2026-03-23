@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Red Flag Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Mono:wght@400;500&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d0d0d;--card:#161616;--card2:#1e1e1e;--border:#2a2a2a;
+  --red:#ff3b3b;--red-dim:rgba(255,59,59,0.12);--amber:#ffb627;--green:#00d68f;
+  --text:#f0ece4;--muted:#888;--bubble-them:#252525;--bubble-me:#c0392b;
+  --font-display:'Playfair Display',serif;--font-mono:'DM Mono',monospace;--font-body:'Nunito',sans-serif;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+body{display:flex;flex-direction:column;align-items:center;padding:0 16px 80px;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");opacity:0.6;}
+body>*{position:relative;z-index:1;}
+
+header{width:100%;max-width:440px;padding:28px 0 20px;text-align:center;}
+.header-tag{display:inline-block;font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--red);border:1px solid var(--red);border-radius:3px;padding:3px 10px;margin-bottom:12px;}
+h1{font-family:var(--font-display);font-size:42px;font-weight:900;line-height:1;letter-spacing:-1px;color:var(--text);margin-bottom:4px;}
+h1 span{color:var(--red);font-style:italic;}
+.subtitle{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.06em;}
+
+.mode-toggle{width:100%;max-width:440px;display:flex;gap:8px;margin-bottom:16px;}
+.mode-btn{flex:1;padding:10px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font-body);font-size:12px;font-weight:800;cursor:pointer;transition:all .15s;}
+.mode-btn.active{background:var(--red-dim);border-color:var(--red);color:var(--text);}
+
+.picker{width:100%;max-width:440px;margin-bottom:16px;}
+.picker-label{font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.scenario-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+.scenario-btn{padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font-body);font-size:11px;font-weight:700;cursor:pointer;text-align:left;transition:all .15s;line-height:1.3;}
+.scenario-btn:hover{border-color:var(--red);color:var(--text);}
+.scenario-btn.active{border-color:var(--red);background:var(--red-dim);color:var(--text);}
+.scenario-btn .emoji{display:block;font-size:16px;margin-bottom:3px;}
+
+.tiktok-card{width:100%;max-width:440px;background:var(--card);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 0 60px rgba(255,59,59,0.07);position:relative;}
+
+/* TIKTOK MODE */
+body.tiktok-mode{padding:0;background:#000;}
+body.tiktok-mode header,body.tiktok-mode .picker,body.tiktok-mode .mode-toggle,body.tiktok-mode .controls,body.tiktok-mode .counter{display:none;}
+body.tiktok-mode .tiktok-card{max-width:100%;width:100vw;border-radius:0;border:none;min-height:100vh;display:flex;flex-direction:column;}
+body.tiktok-mode .chat-area{flex:1;}
+.tiktok-overlay{display:none;position:fixed;z-index:50;bottom:90px;left:0;right:0;padding:0 16px;flex-direction:column;gap:6px;}
+body.tiktok-mode .tiktok-overlay{display:flex;}
+.tiktok-nav{display:flex;gap:8px;}
+.tiktok-nav button{flex:1;padding:13px;border:none;border-radius:10px;font-family:var(--font-display);font-size:17px;font-weight:700;cursor:pointer;letter-spacing:.5px;}
+.tiktok-reveal-btn{background:var(--red);color:#fff;}
+.tiktok-next-btn{background:#222;color:var(--muted);}
+.tiktok-exit{text-align:center;font-size:11px;font-weight:800;color:rgba(255,255,255,0.3);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:4px;}
+.tiktok-exit:hover{color:rgba(255,255,255,0.6);}
+.tiktok-brand{display:none;position:absolute;top:0;left:0;right:0;padding:20px 18px 14px;background:linear-gradient(to bottom,rgba(0,0,0,0.7),transparent);pointer-events:none;z-index:5;}
+body.tiktok-mode .tiktok-brand{display:flex;align-items:center;gap:10px;}
+.tiktok-brand-logo{font-family:var(--font-display);font-size:22px;font-weight:900;color:#fff;}
+.tiktok-brand-logo span{color:var(--red);font-style:italic;}
+.tiktok-brand-tag{font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:.1em;margin-left:auto;}
+
+.phone-header{background:var(--card2);padding:13px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#ff6b6b,#ff3b3b);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;flex-shrink:0;}
+.contact-name{font-size:14px;font-weight:800;color:var(--text);}
+.contact-status{font-size:10px;color:var(--green);font-weight:700;}
+.header-dots{display:flex;gap:4px;margin-left:auto;}
+.header-dots span{width:4px;height:4px;border-radius:50%;background:var(--muted);}
+
+.chat-area{padding:0;display:flex;flex-direction:column;gap:0;}
+.msg{display:flex;flex-direction:column;max-width:92%;height:100vh;justify-content:center;padding:20px;animation:msgIn .3s ease forwards;opacity:0;}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.msg.them{align-self:flex-start;}
+.msg.me{align-self:flex-end;}
+.bubble{padding:28px 26px;border-radius:16px;font-size:28px;line-height:1.65;font-weight:600;}
+.msg.them .bubble{background:var(--bubble-them);color:var(--text);border-bottom-left-radius:4px;}
+.msg.me .bubble{background:var(--bubble-me);color:#fff;border-bottom-right-radius:4px;}
+.msg-time{font-size:16px;color:var(--muted);margin-top:8px;font-weight:600;}
+.msg.me .msg-time{text-align:right;}
+.msg.flagged .bubble{outline:2px solid var(--red);outline-offset:2px;}
+.msg.flagged.them .bubble{background:#2a1515;}
+.flag-badge{display:inline-flex;align-items:center;gap:4px;background:var(--red);color:#fff;font-family:var(--font-mono);font-size:18px;padding:8px 18px;border-radius:99px;margin-top:12px;animation:badgeIn .4s ease .1s forwards;opacity:0;clear:both;}
+@keyframes badgeIn{from{opacity:0;transform:scale(.8);}to{opacity:1;transform:scale(1);}}
+.chat-divider{text-align:center;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);position:relative;margin:4px 0;}
+.chat-divider::before,.chat-divider::after{content:'';position:absolute;top:50%;width:30%;height:1px;background:var(--border);}
+.chat-divider::before{left:0;}.chat-divider::after{right:0;}
+
+.reveal-panel{background:var(--card2);border-top:1px solid var(--border);padding:16px;display:none;}
+.reveal-panel.show{display:block;}
+.reveal-title{font-family:var(--font-display);font-size:32px;font-weight:900;color:var(--red);margin-bottom:16px;}
+.score-bar{display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:28px 24px;margin-bottom:20px;}
+.score-emojis{font-size:32px;letter-spacing:6px;}
+.score-text{font-size:22px;font-weight:800;}
+.score-sub{font-size:16px;color:var(--muted);font-weight:600;}
+.flag-item{display:flex;gap:16px;align-items:center;padding:24px 0;height:100vh;border-bottom:1px solid var(--border);}
+.flag-item:last-child{border-bottom:none;}
+.flag-num{width:44px;height:44px;border-radius:8px;background:var(--red-dim);border:1px solid var(--red);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:18px;color:var(--red);flex-shrink:0;}
+.flag-name{font-size:12px;font-weight:800;color:var(--text);margin-bottom:2px;}
+.flag-desc{font-size:11px;color:var(--muted);line-height:1.5;font-weight:600;}
+
+.controls{width:100%;max-width:440px;margin-top:14px;display:flex;gap:8px;}
+.btn-reveal{flex:1;padding:13px;background:var(--red);color:#fff;border:none;border-radius:10px;font-family:var(--font-display);font-size:17px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .1s;letter-spacing:.5px;}
+.btn-reveal:hover{opacity:.9;transform:translateY(-1px);}
+.btn-next{padding:13px 16px;background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:10px;font-family:var(--font-body);font-size:13px;font-weight:800;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn-next:hover{border-color:var(--text);color:var(--text);}
+.counter{width:100%;max-width:440px;text-align:center;margin-top:8px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+
+/* TIKTOK SWIPE MODE */
+#tikSwipe{display:none;position:fixed;inset:0;z-index:500;background:#0a0a0a;overflow:hidden;font-family:var(--font-body);}
+body.tiktok-mode #tikSwipe{display:block;}
+body.tiktok-mode>*:not(#tikSwipe){display:none !important;}
+.tik-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;cursor:pointer;}
+.tik-screen.hidden{opacity:0;pointer-events:none;transform:translateY(80px);}
+.tik-screen.exit{transform:translateY(-110%);opacity:0;transition:transform .28s ease,opacity .2s;}
+
+/* front page */
+.tik-front{text-align:center;width:100%;max-width:400px;}
+.tik-front-logo{font-size:64px;margin-bottom:20px;display:block;}
+.tik-front-title{font-family:var(--font-display);font-size:42px;font-weight:900;color:#fff;line-height:1.1;margin-bottom:16px;}
+.tik-front-title span{color:var(--red);font-style:italic;}
+.tik-front-sub{font-size:17px;color:rgba(255,255,255,.55);line-height:1.6;margin-bottom:40px;}
+.tik-front-btn{background:var(--red);color:#fff;border:none;border-radius:99px;padding:18px 48px;font-family:var(--font-display);font-size:20px;font-weight:900;cursor:pointer;letter-spacing:.5px;transition:transform .15s,background .15s;display:inline-block;}
+.tik-front-btn:hover{background:#e02020;transform:scale(1.03);}
+.tik-front-tap{margin-top:24px;font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.2);}
+
+/* message card */
+.tik-msg-wrap{width:100%;max-width:420px;}
+.tik-msg-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+.tik-av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#ff6b6b,#c0392b);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#fff;flex-shrink:0;}
+.tik-name{font-size:15px;font-weight:800;color:var(--text);}
+.tik-status{font-size:11px;color:var(--muted);}
+.tik-bubble-wrap{background:var(--card);border-radius:20px;padding:28px 26px;border:1px solid var(--border);margin-bottom:12px;}
+.tik-bubble-text{font-family:var(--font-display);font-size:28px;font-weight:700;color:#fff;line-height:1.5;}
+.tik-bubble-time{font-size:13px;color:var(--muted);margin-top:14px;font-family:var(--font-mono);}
+.tik-tap-hint{text-align:center;font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.2);animation:tikpulse 2s ease-in-out infinite;margin-top:8px;}
+@keyframes tikpulse{0%,100%{opacity:.2;}50%{opacity:.5;}}
+
+/* debate card */
+.tik-debate-wrap{width:100%;max-width:440px;text-align:center;}
+.tik-debate-emoji{font-size:52px;margin-bottom:16px;display:block;}
+.tik-debate-title{font-family:var(--font-display);font-size:32px;font-weight:900;color:#fff;margin-bottom:10px;}
+.tik-debate-quote{font-size:17px;color:rgba(255,255,255,.6);line-height:1.6;font-style:italic;margin-bottom:24px;padding:18px;background:rgba(255,255,255,.05);border-radius:16px;border:1px solid rgba(255,255,255,.08);}
+.tik-debate-vs{display:flex;gap:12px;align-items:center;margin-bottom:24px;}
+.tik-opt{flex:1;padding:20px 10px;border-radius:16px;font-size:16px;font-weight:900;text-align:center;line-height:1.4;}
+.tik-opt-r{background:rgba(255,59,59,.15);border:2px solid rgba(255,59,59,.5);color:#ff6b6b;}
+.tik-opt-g{background:rgba(0,214,143,.1);border:2px solid rgba(0,214,143,.4);color:#00d68f;}
+.tik-vs-divider{font-family:var(--font-display);font-size:20px;font-weight:900;color:rgba(255,255,255,.3);flex-shrink:0;}
+.tik-debate-arrow{font-size:28px;margin-bottom:10px;animation:tikpulse 1.2s ease-in-out infinite;}
+.tik-debate-cta{font-family:var(--font-display);font-size:20px;font-weight:900;color:#fff;margin-bottom:8px;}
+.tik-debate-subcta{font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.25);animation:tikpulse 2s ease-in-out infinite;}
+
+/* reveal card */
+.tik-reveal-wrap{width:100%;max-width:420px;border-radius:28px;padding:44px 36px;text-align:center;}
+.tik-reveal-wrap.rf{background:linear-gradient(160deg,#1a0505,#2a0808);border:2px solid var(--red);}
+.tik-reveal-wrap.ok{background:linear-gradient(160deg,#051a0d,#082816);border:2px solid var(--green);}
+.tik-reveal-big{font-size:64px;margin-bottom:16px;display:block;}
+.tik-reveal-verdict{font-family:var(--font-display);font-size:36px;font-weight:900;margin-bottom:10px;}
+.tik-reveal-wrap.rf .tik-reveal-verdict{color:var(--red);}
+.tik-reveal-wrap.ok .tik-reveal-verdict{color:var(--green);}
+.tik-reveal-flagname{font-size:20px;font-weight:800;color:#fff;margin-bottom:14px;}
+.tik-reveal-desc{font-size:16px;color:rgba(255,255,255,.65);line-height:1.7;font-weight:600;}
+.tik-reveal-ok-desc{font-size:18px;color:rgba(255,255,255,.6);line-height:1.65;}
+.tik-next-cta{margin-top:20px;font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.2);animation:tikpulse 2s ease-in-out infinite;}
+
+/* progress bar */
+.tik-prog-bar{position:absolute;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,.08);}
+.tik-prog-fill{height:100%;background:var(--red);transition:width .3s ease;border-radius:0 2px 2px 0;}
+
+/* exit */
+.tik-exit-btn{position:absolute;top:18px;right:18px;z-index:10;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.45);font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:7px 14px;border-radius:99px;cursor:pointer;font-family:var(--font-body);transition:all .15s;}
+.tik-exit-btn:hover{color:#fff;background:rgba(255,255,255,.12);}
+.tik-counter{position:absolute;top:22px;left:18px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);}
+
+.tik-interrupt-wrap,.tik-decision-wrap,.tik-verdict-wrap{width:100%;max-width:440px;text-align:center;}
+.tik-interrupt-bar,.tik-decision-bar{display:inline-block;color:#fff;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;padding:6px 16px;border-radius:4px;margin-bottom:20px;}
+.tik-interrupt-bar{background:var(--red);}
+.tik-decision-bar{background:#e07000;}
+.tik-interrupt-q{font-family:var(--font-display);font-size:34px;font-weight:900;color:#fff;line-height:1.25;margin-bottom:12px;}
+.tik-interrupt-sub{font-size:15px;color:rgba(255,255,255,.4);font-weight:600;}
+.tik-decision-q{font-family:var(--font-display);font-size:30px;font-weight:900;color:#fff;line-height:1.25;margin-bottom:24px;}
+.tik-decision-opts{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.tik-decision-opt{padding:16px 20px;border-radius:14px;font-size:16px;font-weight:800;text-align:left;border:1.5px solid rgba(255,255,255,.12);color:rgba(255,255,255,.75);background:rgba(255,255,255,.05);}
+.tik-decision-cta{font-family:var(--font-display);font-size:18px;font-weight:900;color:#e07000;margin-bottom:6px;}
+.tik-decision-sub{font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.2);animation:tikpulse 2s ease-in-out infinite;}
+.tik-verdict-title{font-family:var(--font-display);font-size:32px;font-weight:900;line-height:1.2;margin-bottom:18px;color:#fff;}
+.tik-verdict-body{font-size:16px;color:rgba(255,255,255,.7);line-height:1.7;margin-bottom:20px;padding:18px;background:rgba(255,255,255,.05);border-radius:14px;border:1px solid rgba(255,255,255,.08);}
+.tik-verdict-tags{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;}
+.tik-verdict-tag{font-size:13px;font-weight:800;padding:6px 14px;border-radius:99px;}
+.tik-verdict-tag.r{background:rgba(255,59,59,.15);border:1.5px solid rgba(255,59,59,.4);color:#ff6b6b;}
+.tik-verdict-tag.g{background:rgba(0,214,143,.1);border:1.5px solid rgba(0,214,143,.3);color:#00d68f;}
+.tik-verdict-tag.a{background:rgba(255,107,0,.1);border:1.5px solid rgba(255,107,0,.3);color:#ff9a4d;}
+.tik-verdict-cta{font-family:var(--font-display);font-size:16px;font-weight:900;color:rgba(255,255,255,.45);}
+
+/* INTERRUPT PATTERN BREAK */
+@keyframes tikShake{
+  0%{transform:translateX(0);}
+  15%{transform:translateX(-8px);}
+  30%{transform:translateX(8px);}
+  45%{transform:translateX(-6px);}
+  60%{transform:translateX(6px);}
+  75%{transform:translateX(-3px);}
+  90%{transform:translateX(3px);}
+  100%{transform:translateX(0);}
+}
+@keyframes tikFlash{
+  0%{opacity:0;}
+  20%{opacity:0.35;}
+  40%{opacity:0;}
+  60%{opacity:0.2;}
+  100%{opacity:0;}
+}
+.tik-flash-overlay{
+  position:absolute;inset:0;background:var(--red);
+  pointer-events:none;z-index:20;opacity:0;
+}
+.tik-screen.interrupt-active{
+  animation:tikShake .5s ease forwards;
+}
+.tik-interrupt-wrap{
+  position:relative;
+}
+.tik-interrupt-bar{
+  animation:tikpulse .8s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-tag">🚩 Psychology Series</div>
+  <h1>Red <span>Flag</span><br>Detector</h1>
+  <p class="subtitle">Spot the toxic behaviour — then learn the psychology</p>
+</header>
+
+<div class="mode-toggle">
+  <button class="mode-btn active" onclick="setMode('normal')">📱 Normal view</button>
+  <button class="mode-btn" onclick="setMode('tiktok')">🎬 TikTok mode</button>
+</div>
+
+<div class="picker">
+  <div class="picker-label">Choose a scenario</div>
+  <div class="scenario-grid" id="scenarioGrid"></div>
+</div>
+
+<div class="tiktok-card" id="card">
+  <div class="tiktok-brand">
+    <div class="tiktok-brand-logo">Red <span>Flag</span> Detector</div>
+    <div class="tiktok-brand-tag">🚩 psychology</div>
+  </div>
+  <div class="phone-header">
+    <div class="avatar" id="avatarInitial">A</div>
+    <div class="contact-info">
+      <div class="contact-name" id="contactName">Alex</div>
+      <div class="contact-status">Active now</div>
+    </div>
+    <div class="header-dots"><span></span><span></span><span></span></div>
+  </div>
+  <div class="chat-area" id="chatArea"></div>
+  <div class="reveal-panel" id="revealPanel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div class="reveal-title" style="margin-bottom:0;">🚩 Red Flags Detected</div><button onclick="hideReveal()" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;padding:4px 10px;cursor:pointer;">X Close</button></div>
+    <div id="scoreBar" class="score-bar"></div>
+    <div id="flagList"></div>
+  </div>
+</div>
+
+<div class="tiktok-overlay">
+  <div class="tiktok-nav">
+    <button class="tiktok-reveal-btn" id="tikRevealBtn" onclick="toggleReveal()">Reveal 🚩</button>
+    <button class="tiktok-next-btn" onclick="nextScenario()">Next ↻</button>
+  </div>
+  <div class="tiktok-exit" onclick="setMode('normal')">✕ exit tiktok mode</div>
+</div>
+
+<div class="controls">
+  <button class="btn-reveal" id="revealBtn" onclick="toggleReveal()">Reveal the red flags →</button>
+  <button class="btn-next" onclick="nextScenario()">Next ↻</button>
+</div>
+<div class="counter" id="counter"></div>
+
+<script>
+const SCENARIOS = [
+  {
+    name:"Love Bomber",contact:"Alex",emoji:"💣",
+    messages:[
+      {side:"them",text:"Good morning beautiful 😍 I literally couldn't sleep thinking about you",time:"8:02 AM",flag:null},
+      {side:"me",text:"Aw that's sweet! We've only been talking for 3 days though lol",time:"8:45 AM",flag:null},
+      {side:"them",text:"I know but I've never felt this way about anyone. You're different. You're my person.",time:"8:46 AM",flag:{name:"Love Bombing",desc:"Overwhelming affection early on creates artificial intimacy before you've had chance to evaluate someone."}},
+      {side:"them",text:"I was thinking we should make it official already. Why wait?",time:"8:47 AM",flag:{name:"Rushing Intimacy",desc:"Pushing for commitment unusually fast bypasses your natural evaluation process — often a control tactic."}},
+      {side:"me",text:"We literally just met... I'm not sure I'm ready for that",time:"9:10 AM",flag:null},
+      {side:"them",text:"Other girls would kill to have someone like me. I just thought you were different 🙄",time:"9:11 AM",flag:{name:"Guilt Trip + Comparison",desc:"Using guilt and comparison to override your boundaries and pressure you into decisions."}},
+    ],
+    flags:[
+      {name:"Love Bombing",desc:"Overwhelming affection early on creates artificial intimacy and emotional dependency before you've properly evaluated someone."},
+      {name:"Rushing Intimacy",desc:"Pushing for commitment unusually fast bypasses your natural process of getting to know someone — often a control tactic."},
+      {name:"Guilt Trip + Comparison",desc:"Making you feel you're failing them and comparing you to others — classic pressure to override your boundaries."},
+    ]
+  },
+  {
+    name:"Gaslighter",contact:"Morgan",emoji:"🌀",
+    messages:[
+      {side:"me",text:"Hey, you said you'd call me at 8. It's 11pm. I was worried",time:"11:02 PM",flag:null},
+      {side:"them",text:"I never said 8?? I said I'd call when I could lol",time:"11:05 PM",flag:{name:"Gaslighting",desc:"Denying something agreed on to make you question your own memory and perception."}},
+      {side:"me",text:"You definitely said 8, I wrote it in my diary...",time:"11:06 PM",flag:null},
+      {side:"them",text:"You're honestly so needy lately. I can't believe you're making this a thing",time:"11:07 PM",flag:{name:"DARVO",desc:"Deny, Attack, Reverse Victim & Offender — turning your valid concern into evidence of YOUR problem."}},
+      {side:"them",text:"You need to work on your anxiety issues, this isn't healthy",time:"11:08 PM",flag:{name:"Pathologising",desc:"Labelling normal emotional responses as mental health issues to dismiss and invalidate your feelings."}},
+      {side:"me",text:"Maybe you're right... I'm sorry for overreacting",time:"11:20 PM",flag:null},
+    ],
+    flags:[
+      {name:"Gaslighting",desc:"Denying reality to make you question your own memory and sanity — a core manipulation tactic."},
+      {name:"DARVO",desc:"Deny, Attack, Reverse Victim & Offender. Your legitimate concern becomes proof of your 'problem'."},
+      {name:"Pathologising",desc:"Framing your normal emotional responses as mental illness to dismiss and gain power over you."},
+    ]
+  },
+  {
+    name:"The Controller",contact:"Taylor",emoji:"🔒",
+    messages:[
+      {side:"them",text:"Who was that guy you were talking to in your story last night?",time:"2:14 PM",flag:{name:"Jealousy & Surveillance",desc:"Monitoring your social media and demanding explanations for innocent interactions is a form of control."}},
+      {side:"me",text:"Lol that's my cousin Mark, I've mentioned him loads of times",time:"2:30 PM",flag:null},
+      {side:"them",text:"Why does he have his arm around you? I don't like it",time:"2:31 PM",flag:null},
+      {side:"me",text:"It's just a photo?? He's family",time:"2:32 PM",flag:null},
+      {side:"them",text:"I just think if you respected me you wouldn't post stuff like that",time:"2:33 PM",flag:{name:"Respect Framing",desc:"Redefining 'respect' to mean complying with their control. Real respect never requires you to shrink yourself."}},
+      {side:"them",text:"Can you just delete it? For me? 🥺",time:"2:35 PM",flag:{name:"Isolation Tactic",desc:"Getting you to remove normal relationships from your life — step one in cutting you off from your support network."}},
+    ],
+    flags:[
+      {name:"Jealousy & Surveillance",desc:"Monitoring your social media and demanding explanations for innocent interactions is about control, not love."},
+      {name:"Respect Framing",desc:"Redefining 'respect' to mean total compliance. Healthy respect never requires you to diminish yourself."},
+      {name:"Isolation Tactic",desc:"Pressuring you to remove people from your life is how abusers cut off your support network over time."},
+    ]
+  },
+  {
+    name:"Hot & Cold",contact:"River",emoji:"🌡️",
+    messages:[
+      {side:"them",text:"Last night was everything. I've never connected with anyone like that 💫",time:"Mon 9am",flag:null},
+      {side:"me",text:"Same!! Can't stop thinking about it 😊",time:"Mon 9:15am",flag:null},
+      {side:"them",text:"",time:"",flag:null,isGap:true,gapText:"— 4 days of silence —"},
+      {side:"me",text:"Hey, is everything okay? Haven't heard from you",time:"Fri 7pm",flag:null},
+      {side:"them",text:"Yeah sorry been super busy. What's up",time:"Fri 11pm",flag:{name:"Intermittent Reinforcement",desc:"Alternating warmth and coldness keeps you anxiously chasing their approval — the same mechanism as a slot machine."}},
+      {side:"me",text:"Just missed you. Did I do something wrong?",time:"Fri 11:02pm",flag:null},
+      {side:"them",text:"You're so intense sometimes 😂 just chill",time:"Fri 11:03pm",flag:{name:"Emotional Minimising",desc:"Dismissing your feelings as 'intense' after they created the anxiety through their own behaviour."}},
+    ],
+    flags:[
+      {name:"Intermittent Reinforcement",desc:"Unpredictable hot/cold behaviour keeps you chasing their approval — psychologically identical to a gambling addiction."},
+      {name:"Emotional Minimising",desc:"After creating anxiety through their own absence, they dismiss your feelings as 'intense' — gaslighting your valid response."},
+    ]
+  },
+  {
+    name:"Victim Player",contact:"Casey",emoji:"🎭",
+    messages:[
+      {side:"me",text:"I felt really hurt when you cancelled on me again last minute",time:"3:00 PM",flag:null},
+      {side:"them",text:"Wow. I'm going through SO much right now and this is what you bring up",time:"3:05 PM",flag:{name:"Deflection via Victimhood",desc:"Responding to your valid concern by redirecting to their own problems — making it impossible to address issues."}},
+      {side:"me",text:"I know you've got a lot on, I just wanted to share how I felt",time:"3:08 PM",flag:null},
+      {side:"them",text:"I guess I'm just a terrible person then 🙃",time:"3:09 PM",flag:{name:"Black & White Thinking",desc:"Turning a specific concern into a global attack on their character to make you drop the subject."}},
+      {side:"me",text:"That's not what I said at all!",time:"3:10 PM",flag:null},
+      {side:"them",text:"No it's fine. I'll just be alone. I'm used to it.",time:"3:11 PM",flag:{name:"Emotional Hostage Taking",desc:"Implying self-harm or abandonment to make you feel responsible and afraid to set boundaries."}},
+    ],
+    flags:[
+      {name:"Deflection via Victimhood",desc:"Redirecting to their own suffering when you raise a concern makes it impossible to ever have a productive conversation."},
+      {name:"Black & White Thinking",desc:"Turning a specific complaint into 'you think I'm terrible' forces you to comfort them instead of resolving the issue."},
+      {name:"Emotional Hostage Taking",desc:"Implying isolation or self-harm makes you feel responsible for their wellbeing and terrified to raise concerns."},
+    ]
+  },
+  {
+    name:"Breadcrumber",contact:"Jordan",emoji:"🍞",
+    messages:[
+      {side:"them",text:"Been thinking about you 👀",time:"Fri 11:45pm",flag:{name:"Breadcrumbing",desc:"Sending just enough attention to keep you interested with no real intention of commitment."}},
+      {side:"me",text:"Really? You went quiet for 2 weeks lol",time:"Fri 11:50pm",flag:null},
+      {side:"them",text:"I know I know, life's been crazy. Miss you though",time:"Fri 11:51pm",flag:null},
+      {side:"me",text:"So where do you see this going?",time:"Fri 11:55pm",flag:null},
+      {side:"them",text:"Why does everything have to be so serious, can't we just vibe 😂",time:"Fri 11:57pm",flag:{name:"Commitment Phobia Framing",desc:"Calling your need for basic clarity 'serious' — keeps you available without any accountability."}},
+      {side:"them",text:"You look amazing in your last photo btw 🔥",time:"Fri 11:58pm",flag:{name:"Strategic Flattery",desc:"Pivoting to compliments when cornered — using attraction to derail your need for honest answers."}},
+    ],
+    flags:[
+      {name:"Breadcrumbing",desc:"Sending just enough attention to keep you hooked with no real commitment — using manufactured scarcity as control."},
+      {name:"Commitment Phobia Framing",desc:"Calling your need for clarity 'serious' keeps you available while they avoid all accountability."},
+      {name:"Strategic Flattery",desc:"Using compliments to deflect from difficult questions — pivoting to your emotions to avoid being held accountable."},
+    ]
+  },
+  {
+    name:"The Negger",contact:"Sam",emoji:"🎯",
+    messages:[
+      {side:"them",text:"You're actually really pretty... for someone who doesn't try that hard",time:"7:22 PM",flag:{name:"Negging",desc:"A backhanded compliment designed to lower your self-esteem and make you seek their approval."}},
+      {side:"me",text:"What does that mean?",time:"7:25 PM",flag:null},
+      {side:"them",text:"Just that you could be stunning if you put in a bit more effort 😊",time:"7:26 PM",flag:{name:"Unsolicited Criticism",desc:"Offering unrequested 'improvements' establishes them as the authority on your worth early on."}},
+      {side:"me",text:"I'm happy with how I look actually",time:"7:28 PM",flag:null},
+      {side:"them",text:"See that confidence is actually really attractive. I like that you don't need validation",time:"7:29 PM",flag:{name:"Praise as Control",desc:"Switching to praise when you push back — training you to seek their approval to feel good about yourself."}},
+    ],
+    flags:[
+      {name:"Negging",desc:"Backhanded compliments are designed to create insecurity and make you seek their approval to feel good enough."},
+      {name:"Unsolicited Criticism",desc:"Offering unrequested 'improvements' early on establishes them as the judge of your worth."},
+      {name:"Praise as Control",desc:"Switching between criticism and praise trains you to crave their approval — a classic conditioning tactic."},
+    ]
+  },
+  {
+    name:"Future Faker",contact:"Jamie",emoji:"🌈",
+    messages:[
+      {side:"them",text:"I can already picture us travelling Europe together next summer ✈️",time:"2:10 PM",flag:{name:"Future Faking",desc:"Making promises about a shared future to create emotional investment with no real intention of following through."}},
+      {side:"me",text:"That sounds amazing! I'd love that",time:"2:15 PM",flag:null},
+      {side:"them",text:"I want to introduce you to my family soon too. I think they'd love you",time:"2:16 PM",flag:null},
+      {side:"them",text:"",time:"",flag:null,isGap:true,gapText:"— 3 weeks later —"},
+      {side:"me",text:"Hey, did you ever look into those flights you mentioned?",time:"11:30 AM",flag:null},
+      {side:"them",text:"Haha I was just in a good mood that day, don't take everything so literally 😅",time:"2:45 PM",flag:{name:"Retroactive Reframing",desc:"Invalidating promises they made when it suits them — leaves you feeling foolish for believing them."}},
+    ],
+    flags:[
+      {name:"Future Faking",desc:"Creating visions of a shared future generates emotional investment with no real intention of following through."},
+      {name:"Retroactive Reframing",desc:"Dismissing their own promises as 'just a mood' — leaves you feeling naive for having believed them."},
+    ]
+  },
+  {
+    name:"Guilt Tripper",contact:"Drew",emoji:"😢",
+    messages:[
+      {side:"me",text:"I can't make it tonight, I've got plans with my friends already",time:"4:05 PM",flag:null},
+      {side:"them",text:"Wow okay. Good to know where I stand",time:"4:08 PM",flag:{name:"Silent Punishment",desc:"Passive aggressive responses to punish you for having a life outside of them."}},
+      {side:"me",text:"I mentioned these plans ages ago, I'm not cancelling on my friends",time:"4:10 PM",flag:null},
+      {side:"them",text:"No no, go have fun. I'll just be here. By myself. Again.",time:"4:11 PM",flag:{name:"Martyrdom",desc:"Performing suffering to make you feel guilty for having normal boundaries and independence."}},
+      {side:"me",text:"You can come too if you want?",time:"4:13 PM",flag:null},
+      {side:"them",text:"Nah it's fine. You clearly need space from me anyway. I get it 🙂",time:"4:14 PM",flag:{name:"False Acceptance",desc:"Fake acceptance designed to maximise guilt — the 🙂 emoji is doing a lot of heavy lifting here."}},
+    ],
+    flags:[
+      {name:"Silent Punishment",desc:"Passive aggressive responses punish you for having a life outside of them — making independence feel dangerous."},
+      {name:"Martyrdom",desc:"Performing suffering makes you feel guilty for healthy boundaries and responsible for their emotions."},
+      {name:"False Acceptance",desc:"Saying 'it's fine' while clearly communicating it isn't — designed to maximise guilt without direct confrontation."},
+    ]
+  },
+  {
+    name:"The Possessive",contact:"Reece",emoji:"⛓️",
+    messages:[
+      {side:"me",text:"Just got home from Hannah's 😊 was such a good night",time:"12:02 AM",flag:null},
+      {side:"them",text:"Who else was there",time:"12:03 AM",flag:{name:"Interrogation",desc:"Demanding detailed accounts of your social life signals a need to monitor and control your movements."}},
+      {side:"me",text:"Just the usual lot, why?",time:"12:04 AM",flag:null},
+      {side:"them",text:"Was Tom there",time:"12:04 AM",flag:null},
+      {side:"me",text:"Yes but we're just friends, I've told you this",time:"12:05 AM",flag:null},
+      {side:"them",text:"I just don't understand why you need to be out until midnight with other guys",time:"12:06 AM",flag:{name:"Boundary Erosion",desc:"Framing normal social behaviour as a problem — gradually shrinking what you're 'allowed' to do."}},
+      {side:"them",text:"If you loved me you'd understand why this hurts me",time:"12:07 AM",flag:{name:"Love Conditioning",desc:"Making love conditional on compliance with their jealousy — redefining what love should look like."}},
+    ],
+    flags:[
+      {name:"Interrogation",desc:"Demanding detailed accounts of your social life is about monitoring and control, not care."},
+      {name:"Boundary Erosion",desc:"Framing normal social behaviour as a problem gradually shrinks what you're 'allowed' to do until you're isolated."},
+      {name:"Love Conditioning",desc:"Attaching love to compliance with jealousy makes your normal behaviour feel like a betrayal."},
+    ]
+  },
+  {
+    name:"Stonewaller",contact:"Blake",emoji:"🧱",
+    messages:[
+      {side:"me",text:"Can we please talk about what happened yesterday? I've been upset all day",time:"6:30 PM",flag:null},
+      {side:"them",text:"...",time:"6:45 PM",flag:{name:"Stonewalling",desc:"Refusing to engage with conflict gives them control — you can't resolve anything when one person won't participate."}},
+      {side:"me",text:"Blake please, I just want to understand what I did wrong",time:"7:00 PM",flag:null},
+      {side:"them",text:"Fine.",time:"7:22 PM",flag:null},
+      {side:"me",text:"Fine what? Can you talk to me?",time:"7:23 PM",flag:null},
+      {side:"them",text:"You're so exhausting sometimes. Not everything needs to be a conversation.",time:"7:45 PM",flag:{name:"Emotional Dismissal",desc:"Framing your need for communication as 'exhausting' — punishing you for wanting to address problems."}},
+    ],
+    flags:[
+      {name:"Stonewalling",desc:"Refusing to engage with conflict gives them total control — you can't resolve anything alone."},
+      {name:"Emotional Dismissal",desc:"Calling your need for communication 'exhausting' punishes you for wanting a healthy relationship."},
+    ]
+  },
+  {
+    name:"The Minimiser",contact:"Frankie",emoji:"📉",
+    messages:[
+      {side:"me",text:"I was really hurt by what you said in front of your friends",time:"10:15 AM",flag:null},
+      {side:"them",text:"It was a joke?? You're way too sensitive",time:"10:18 AM",flag:{name:"Emotional Invalidation",desc:"Dismissing your feelings as oversensitivity rather than addressing the impact of their behaviour."}},
+      {side:"me",text:"It didn't feel like a joke. It was humiliating",time:"10:19 AM",flag:null},
+      {side:"them",text:"I can't walk on eggshells around you forever",time:"10:20 AM",flag:{name:"Victim Flip",desc:"Reframing their accountability as your unreasonable demand — making you feel guilty for having feelings."}},
+      {side:"me",text:"I just want you to understand how it made me feel",time:"10:22 AM",flag:null},
+      {side:"them",text:"My ex never had a problem with my sense of humour just saying 🤷",time:"10:23 AM",flag:{name:"Comparison to Ex",desc:"Using an ex as a benchmark implies you're the problem — creates insecurity and puts you in silent competition."}},
+    ],
+    flags:[
+      {name:"Emotional Invalidation",desc:"Calling you 'too sensitive' shifts focus from their behaviour to your reaction — nothing ever gets addressed."},
+      {name:"Victim Flip",desc:"Turning accountability into 'walking on eggshells' makes you feel guilty for having legitimate feelings."},
+      {name:"Comparison to Ex",desc:"Using an ex as a yardstick implies you're the problem — creates insecurity and silent competition."},
+    ]
+  },
+
+  // EARLY DATING / TALKING STAGE
+  {
+    name:"Too Much Too Soon",contact:"Kieran",emoji:"🚀",
+    messages:[
+      {side:"them",text:"Can I be honest? I've been on so many dates and nobody compares to you",time:"Day 2, 9:14 PM",flag:{name:"Premature Idealisation",desc:"Placing you on a pedestal before knowing you creates pressure and sets up future disappointment — or control."}},
+      {side:"me",text:"That's really sweet but we've only just met haha",time:"9:16 PM",flag:null},
+      {side:"them",text:"I know but I trust my gut. I deleted the apps already",time:"9:17 PM",flag:{name:"Unilateral Commitment",desc:"Making big decisions about the relationship without discussion pressures you to match their intensity or feel guilty."}},
+      {side:"me",text:"Oh wow... I'm not quite there yet",time:"9:20 PM",flag:null},
+      {side:"them",text:"That's okay. I'll wait. I'm not going anywhere 😊 you'll see",time:"9:21 PM",flag:{name:"Quiet Pressure",desc:"Framing patience as a virtue while signalling they expect reciprocation — creates a subtle debt dynamic."}},
+    ],
+    flags:[
+      {name:"Premature Idealisation",desc:"Being placed on a pedestal before someone knows you creates pressure and often flips to devaluation later."},
+      {name:"Unilateral Commitment",desc:"Making big relationship decisions without discussion is a pressure tactic disguised as devotion."},
+      {name:"Quiet Pressure",desc:"Performing patience while clearly expecting reciprocation creates a subtle emotional debt you didn't agree to."},
+    ]
+  },
+  {
+    name:"The Interviewer",contact:"Priya",emoji:"📋",
+    messages:[
+      {side:"them",text:"So have you been in a long term relationship before?",time:"8:02 PM",flag:null},
+      {side:"me",text:"Yeah, about 2 years. Ended last year",time:"8:04 PM",flag:null},
+      {side:"them",text:"Why did it end? What did you do wrong",time:"8:05 PM",flag:{name:"Blame Assumption",desc:"Assuming you did something wrong in a past relationship — probing for insecurities to use later."}},
+      {side:"me",text:"It was mutual to be honest, we just grew apart",time:"8:07 PM",flag:null},
+      {side:"them",text:"Hmm. Do you have many friends of the opposite sex?",time:"8:08 PM",flag:{name:"Jealousy Groundwork",desc:"Asking about opposite-sex friendships early on is laying the groundwork to control them later."}},
+      {side:"them",text:"I just like to know what I'm getting into. Transparency is important to me 😇",time:"8:10 PM",flag:{name:"Virtue Framing",desc:"Disguising intrusive questions as 'transparency' or 'honesty' to make interrogation seem reasonable."}},
+    ],
+    flags:[
+      {name:"Blame Assumption",desc:"Assuming you caused your last breakup probes for insecurities and self-doubt they can exploit later."},
+      {name:"Jealousy Groundwork",desc:"Asking about opposite-sex friends early is preparation for controlling those relationships later."},
+      {name:"Virtue Framing",desc:"Calling interrogation 'transparency' makes invasive questions seem like a positive quality rather than a red flag."},
+    ]
+  },
+
+  // SITUATIONSHIP
+  {
+    name:"The Situationship",contact:"Charlie",emoji:"👻",
+    messages:[
+      {side:"me",text:"Can we talk about what we actually are? It's been 4 months",time:"Sun 3:12 PM",flag:null},
+      {side:"them",text:"Why do we need a label? Can't we just enjoy what this is",time:"3:45 PM",flag:{name:"Label Aversion",desc:"Refusing to define the relationship keeps you emotionally invested while they maintain zero accountability."}},
+      {side:"me",text:"Because I don't know if I should be seeing other people or not",time:"3:47 PM",flag:null},
+      {side:"them",text:"I mean... do what you want I guess",time:"4:02 PM",flag:{name:"Deliberate Ambiguity",desc:"Giving you permission to date others while knowing it will trigger your anxiety — keeps you chasing clarity."}},
+      {side:"me",text:"That's not an answer. Do you even want this to go somewhere?",time:"4:04 PM",flag:null},
+      {side:"them",text:"I just don't want to rush things. You're putting a lot of pressure on this",time:"4:15 PM",flag:{name:"Timeline Blame",desc:"Framing your need for basic clarity as 'pressure' after 4 months — making your needs feel unreasonable."}},
+    ],
+    flags:[
+      {name:"Label Aversion",desc:"Refusing to define a 4-month relationship keeps you emotionally invested while they avoid all accountability."},
+      {name:"Deliberate Ambiguity",desc:"Saying 'do what you want' about dating others triggers anxiety and keeps you focused on winning their commitment."},
+      {name:"Timeline Blame",desc:"After 4 months, calling your need for clarity 'pressure' is a way of making your legitimate needs feel unreasonable."},
+    ]
+  },
+  {
+    name:"Benefits Taker",contact:"Ash",emoji:"🎭",
+    messages:[
+      {side:"them",text:"I miss you 😔",time:"Fri 11:48 PM",flag:{name:"Selective Availability",desc:"Only reaching out late at night signals they want the benefits of connection without the commitment."}},
+      {side:"me",text:"You never want to actually meet up though",time:"11:50 PM",flag:null},
+      {side:"them",text:"I've just got a lot going on rn. You know how I feel about you",time:"11:51 PM",flag:{name:"Vague Affection",desc:"'You know how I feel' without showing it is a way of claiming emotional intimacy without doing the work."}},
+      {side:"me",text:"Do I? You haven't made any effort in weeks",time:"11:52 PM",flag:null},
+      {side:"them",text:"I thought you understood me. I guess I was wrong 😕",time:"11:55 PM",flag:{name:"Understanding Tax",desc:"Expecting you to tolerate neglect as proof of understanding — reframes their avoidance as your failure to 'get' them."}},
+    ],
+    flags:[
+      {name:"Selective Availability",desc:"Only appearing late at night when they want emotional support signals they want connection without commitment."},
+      {name:"Vague Affection",desc:"'You know how I feel' without any action is a way of claiming closeness without doing the emotional work."},
+      {name:"Understanding Tax",desc:"Expecting you to accept neglect as proof you 'get' them reframes their avoidance as your empathy failure."},
+    ]
+  },
+
+  // POST-BREAKUP MANIPULATION
+  {
+    name:"The Hooverer",contact:"Ex — Jade",emoji:"🌪️",
+    messages:[
+      {side:"them",text:"I know I shouldn't text but I had a dream about you last night",time:"2:14 AM",flag:{name:"Hoovering",desc:"Reaching out with emotionally loaded content to pull you back in — named after how a vacuum sucks things up."}},
+      {side:"me",text:"Jade we broke up 3 months ago. Please don't do this",time:"8:30 AM",flag:null},
+      {side:"them",text:"I've changed. I know I hurt you but I'm in therapy now",time:"8:32 AM",flag:{name:"Change Claims",desc:"Announcing change without demonstrating it is designed to reopen the door — real change shows, it doesn't announce itself."}},
+      {side:"me",text:"I'm glad you're getting help but I've moved on",time:"8:35 AM",flag:null},
+      {side:"them",text:"Moved on? It's been 3 months. Wow. Guess I never meant that much to you",time:"8:37 AM",flag:{name:"Guilt Hoovering",desc:"Using your healing against you — framing your recovery as proof you never cared, to destabilise your progress."}},
+    ],
+    flags:[
+      {name:"Hoovering",desc:"Reaching out with emotionally loaded content after a breakup is designed to pull you back in, not reconnect genuinely."},
+      {name:"Change Claims",desc:"Announcing 'I've changed' without evidence is a tactic. Real change is demonstrated over time, not announced over text."},
+      {name:"Guilt Hoovering",desc:"Using your healing against you — framing your recovery as evidence you never loved them to destabilise your progress."},
+    ]
+  },
+  {
+    name:"Post-Break Spy",contact:"Ex — Marcus",emoji:"🔍",
+    messages:[
+      {side:"them",text:"Saw you were at Scala last night. Looked like fun",time:"Mon 11:22 AM",flag:{name:"Post-Break Surveillance",desc:"Monitoring your social media or whereabouts after a breakup is a refusal to respect the end of the relationship."}},
+      {side:"me",text:"Are you following me on a fake account?",time:"11:30 AM",flag:null},
+      {side:"them",text:"A mutual told me. I'm not obsessed or anything lol",time:"11:32 AM",flag:{name:"Minimising Stalking",desc:"Laughing off surveillance behaviour as casual — the 'lol' is doing heavy lifting to make monitoring seem normal."}},
+      {side:"me",text:"Marcus please leave me alone. We're done.",time:"11:34 AM",flag:null},
+      {side:"them",text:"I just worry about you. You don't always make great decisions when you drink",time:"11:36 AM",flag:{name:"Concern as Control",desc:"Disguising possessiveness as worry — implying you can't be trusted without them is a control tactic post-breakup."}},
+    ],
+    flags:[
+      {name:"Post-Break Surveillance",desc:"Monitoring your movements after a breakup is a refusal to accept the relationship is over."},
+      {name:"Minimising Stalking",desc:"Laughing off surveillance as casual or coincidental is designed to make you feel dramatic for being uncomfortable."},
+      {name:"Concern as Control",desc:"Framing possessiveness as worry implies you need their supervision — a control tactic disguised as care."},
+    ]
+  },
+
+  // LONG TERM RELATIONSHIP
+  {
+    name:"Slow Fade",contact:"Partner — Lee",emoji:"🌅",
+    messages:[
+      {side:"me",text:"We barely talk anymore. Do you even want to be with me?",time:"Wed 7:45 PM",flag:null},
+      {side:"them",text:"Of course I do. I'm just tired from work",time:"8:12 PM",flag:{name:"Chronic Deflection",desc:"Consistently using tiredness or stress to avoid emotional connection — a pattern, not an excuse."}},
+      {side:"me",text:"You've said that every day for 6 months. Something feels really wrong",time:"8:14 PM",flag:null},
+      {side:"them",text:"Maybe if you stopped putting pressure on me I'd actually want to talk",time:"8:16 PM",flag:{name:"Pressure Reversal",desc:"Blaming your need for connection for their withdrawal — punishing you for wanting intimacy."}},
+      {side:"me",text:"I just miss you. I miss us.",time:"8:18 PM",flag:null},
+      {side:"them",text:"Everything is fine. You're overthinking",time:"8:31 PM",flag:{name:"Reality Dismissal",desc:"Telling someone their accurate perception of relationship decline is 'overthinking' is a form of gaslighting."}},
+    ],
+    flags:[
+      {name:"Chronic Deflection",desc:"Consistently using tiredness or stress to avoid intimacy over months is a pattern of emotional withdrawal, not circumstance."},
+      {name:"Pressure Reversal",desc:"Blaming your need for connection for their emotional distance punishes you for wanting a relationship."},
+      {name:"Reality Dismissal",desc:"Telling you that your accurate perception of a declining relationship is 'overthinking' is gaslighting."},
+    ]
+  },
+  {
+    name:"Financial Control",contact:"Partner — Dan",emoji:"💰",
+    messages:[
+      {side:"me",text:"I want to go to Sarah's hen do next month. It's £200 all in",time:"Tue 6:30 PM",flag:null},
+      {side:"them",text:"That's a lot of money. Do you really need to go",time:"6:45 PM",flag:{name:"Financial Gatekeeping",desc:"Questioning whether you 'need' to spend money on your own social life is a form of financial control."}},
+      {side:"me",text:"She's my best friend. I've been saving for it",time:"6:47 PM",flag:null},
+      {side:"them",text:"We should be saving for the house. I just think you need to have better priorities",time:"6:49 PM",flag:{name:"Shared Goals as Control",desc:"Using joint goals to override your individual spending decisions — making independence feel selfish."}},
+      {side:"me",text:"It's my money though, from my job",time:"6:51 PM",flag:null},
+      {side:"them",text:"There's no 'my money' when you're in a relationship. That's not how this works",time:"6:53 PM",flag:{name:"Financial Enmeshment",desc:"Claiming total ownership of your earnings removes your financial independence — a key tool of coercive control."}},
+    ],
+    flags:[
+      {name:"Financial Gatekeeping",desc:"Needing approval to spend your own money on your social life is a red flag for financial abuse."},
+      {name:"Shared Goals as Control",desc:"Using joint goals to veto your individual choices makes having a life of your own feel like a betrayal."},
+      {name:"Financial Enmeshment",desc:"Claiming there's no 'your money' in a relationship removes financial independence — a core tool of coercive control."},
+    ]
+  },
+
+  // FEMALE PERPETRATOR
+  {
+    name:"Her Control",contact:"Soph",emoji:"👑",
+    messages:[
+      {side:"them",text:"Why were you liking that girl's posts at 1am?",time:"Sat 9:02 AM",flag:{name:"Digital Monitoring",desc:"Tracking the timestamps of your social media activity to build a case against you is obsessive surveillance."}},
+      {side:"me",text:"I was just scrolling, I wasn't thinking about it",time:"9:10 AM",flag:null},
+      {side:"them",text:"So you just mindlessly like other girls' photos at 1am. Great.",time:"9:11 AM",flag:{name:"Sarcastic Contempt",desc:"Using sarcasm to express contempt rather than having a direct conversation — signals disrespect over disagreement."}},
+      {side:"me",text:"It's just Instagram, it means nothing",time:"9:13 AM",flag:null},
+      {side:"them",text:"Fine. I'll just remember this when you wonder why I don't trust you",time:"9:14 AM",flag:{name:"Trust Banking",desc:"Filing away grievances to use as future leverage — keeping a running tab of 'reasons not to trust' you."}},
+    ],
+    flags:[
+      {name:"Digital Monitoring",desc:"Tracking timestamps of your social media activity to build a case against you is surveillance, not love."},
+      {name:"Sarcastic Contempt",desc:"Using contempt instead of direct communication is a sign of disrespect that erodes the relationship over time."},
+      {name:"Trust Banking",desc:"Storing grievances as future leverage keeps you walking on eggshells and afraid to make innocent mistakes."},
+    ]
+  },
+  {
+    name:"Her Guilt",contact:"Mia",emoji:"🌸",
+    messages:[
+      {side:"me",text:"I'm going to watch the football with the boys tonight",time:"Fri 4:00 PM",flag:null},
+      {side:"them",text:"Oh. I was going to cook us dinner but okay",time:"4:05 PM",flag:{name:"Unspoken Expectations",desc:"Creating plans without telling you then using them as leverage — you can't fail to meet expectations you didn't know existed."}},
+      {side:"me",text:"You didn't mention that? I made plans weeks ago",time:"4:07 PM",flag:null},
+      {side:"them",text:"No it's fine. I just feel like your friends always come first",time:"4:09 PM",flag:{name:"Loyalty Hierarchy",desc:"Framing you having other relationships as evidence of misplaced loyalty — healthy partners don't compete with your friends."}},
+      {side:"me",text:"That's not fair, I see you all the time",time:"4:11 PM",flag:null},
+      {side:"them",text:"Do what you want. I'll be fine here on my own 🙂",time:"4:12 PM",flag:{name:"Passive Punishment",desc:"The 🙂 again. Performing martyrdom to make you feel guilty for maintaining friendships outside the relationship."}},
+    ],
+    flags:[
+      {name:"Unspoken Expectations",desc:"Making plans without telling you and using them as leverage sets you up to fail without knowing the rules."},
+      {name:"Loyalty Hierarchy",desc:"Healthy partners don't compete with your friendships — framing your social life as a loyalty problem is controlling."},
+      {name:"Passive Punishment",desc:"Performing martyrdom when you maintain outside friendships makes independence feel selfish and guilt-inducing."},
+    ]
+  },
+
+  // COVERT NARCISSIST
+  {
+    name:"Covert Narc",contact:"Robin",emoji:"🪞",
+    messages:[
+      {side:"me",text:"I got the promotion!! I've been working towards this for 2 years 🎉",time:"Tue 5:45 PM",flag:null},
+      {side:"them",text:"That's great. My manager actually said something similar about me last week",time:"5:52 PM",flag:{name:"Conversation Hijacking",desc:"Redirecting your good news back to themselves — covert narcissists can't tolerate not being the focus."}},
+      {side:"me",text:"Oh... I was kind of hoping we could celebrate?",time:"5:54 PM",flag:null},
+      {side:"them",text:"Of course! I'm happy for you. I just relate because I've been through similar",time:"5:56 PM",flag:{name:"False Validation",desc:"Tacking on happiness as an afterthought while making it about them — performs support without actually giving it."}},
+      {side:"them",text:"You know, they probably chose you partly because of your confidence. I think I helped build that in you",time:"5:58 PM",flag:{name:"Credit Taking",desc:"Subtly claiming responsibility for your achievements — covert narcissists need to feel essential to your success."}},
+    ],
+    flags:[
+      {name:"Conversation Hijacking",desc:"Redirecting your achievements to their own story — covert narcissists struggle to hold space for others' success."},
+      {name:"False Validation",desc:"Performing happiness for you while immediately making it about them is hollow support designed to look good."},
+      {name:"Credit Taking",desc:"Implying your success is partly their doing — covert narcissists need to feel essential to your achievements."},
+    ]
+  },
+  {
+    name:"The Martyr Narc",contact:"Ellis",emoji:"😇",
+    messages:[
+      {side:"me",text:"I feel like you never ask how I'm doing",time:"Thu 8:20 PM",flag:null},
+      {side:"them",text:"I literally do everything for you. I gave up so much for this relationship",time:"8:25 PM",flag:{name:"Sacrifice Ledger",desc:"Keeping a running tally of sacrifices to use against you — healthy giving doesn't come with an invoice."}},
+      {side:"me",text:"That's not what I mean, I just want to feel heard",time:"8:27 PM",flag:null},
+      {side:"them",text:"I'm sorry I'm not perfect. I try so hard and it's never enough",time:"8:28 PM",flag:{name:"Covert Victimhood",desc:"Flipping a reasonable request into proof of their suffering — makes you feel cruel for having a need."}},
+      {side:"me",text:"I'm not saying that...",time:"8:29 PM",flag:null},
+      {side:"them",text:"No it's fine. I'll just try harder. I always do.",time:"8:31 PM",flag:{name:"Performative Selflessness",desc:"Announcing how hard they try rather than actually listening — performing goodness to avoid accountability."}},
+    ],
+    flags:[
+      {name:"Sacrifice Ledger",desc:"Keeping track of sacrifices to use against you later — genuine giving doesn't come with a running invoice."},
+      {name:"Covert Victimhood",desc:"Turning your need into proof of their suffering makes you feel cruel for asking for basic emotional connection."},
+      {name:"Performative Selflessness",desc:"Announcing their effort rather than actually changing — performing goodness to avoid real accountability."},
+    ]
+  },
+
+  // ALMOST RELATIONSHIP
+  {
+    name:"Almost There",contact:"Noel",emoji:"🌙",
+    messages:[
+      {side:"them",text:"You're genuinely unlike anyone I've ever met",time:"Sat 1:02 AM",flag:{name:"Midnight Intensity",desc:"Deep emotional declarations late at night create false intimacy — 1am feelings rarely translate to 1pm behaviour."}},
+      {side:"me",text:"I feel like we have something real but then you pull away",time:"1:05 AM",flag:null},
+      {side:"them",text:"I'm just scared. You make me feel things I'm not used to",time:"1:07 AM",flag:{name:"Fear as Flattery",desc:"Using fear of feelings as a compliment to explain avoidance — makes their withdrawal feel like a tribute to your specialness."}},
+      {side:"me",text:"So what do we do with that",time:"1:09 AM",flag:null},
+      {side:"them",text:"I don't know. I just know I don't want to lose you",time:"1:11 AM",flag:{name:"Non-Committal Claiming",desc:"'I don't want to lose you' without any action to keep you — claiming ownership without accepting responsibility."}},
+    ],
+    flags:[
+      {name:"Midnight Intensity",desc:"Deep declarations at 1am create false intimacy that rarely translates to daytime effort or commitment."},
+      {name:"Fear as Flattery",desc:"Using fear of feelings to explain withdrawal makes avoidance sound romantic rather than what it is — avoidance."},
+      {name:"Non-Committal Claiming",desc:"'I don't want to lose you' without any change is ownership without responsibility — keeping you available for free."},
+    ]
+  },
+  {
+    name:"The Teaser",contact:"Remy",emoji:"🎪",
+    messages:[
+      {side:"them",text:"I keep thinking about what it would be like if we were actually together",time:"Wed 9:33 PM",flag:{name:"Hypothetical Intimacy",desc:"Dangling the idea of a relationship without making one — gets emotional investment without commitment."}},
+      {side:"me",text:"Me too honestly. Why aren't we?",time:"9:35 PM",flag:null},
+      {side:"them",text:"The timing is just off right now. But when things settle down...",time:"9:37 PM",flag:{name:"Perpetual Future",desc:"'When things settle down' is a timeline that never arrives — keeps you waiting for a relationship that isn't coming."}},
+      {side:"me",text:"You've said that for 6 months",time:"9:38 PM",flag:null},
+      {side:"them",text:"I know. You deserve better than this. I just can't let you go 😔",time:"9:40 PM",flag:{name:"Benevolent Trap",desc:"Acknowledging you deserve better while doing nothing about it — uses self-awareness as a substitute for change."}},
+    ],
+    flags:[
+      {name:"Hypothetical Intimacy",desc:"Talking about 'what if we were together' gets emotional investment without any commitment or risk on their part."},
+      {name:"Perpetual Future",desc:"'When things settle down' is a horizon that never arrives — it keeps you waiting for a relationship that isn't coming."},
+      {name:"Benevolent Trap",desc:"Saying you deserve better while doing nothing is self-awareness used as a substitute for actual change."},
+    ]
+  },
+
+  // SOCIAL MEDIA & TEXTING
+  {
+    name:"Read & Ignore",contact:"Zara",emoji:"✓✓",
+    messages:[
+      {side:"me",text:"Hey! Are we still on for Saturday?",time:"Mon 11:02 AM",flag:null},
+      {side:"them",text:"",time:"",flag:null,isGap:true,gapText:"— read at 11:04 AM, no reply —"},
+      {side:"me",text:"Just checking you got this 😊",time:"Mon 3:30 PM",flag:null},
+      {side:"them",text:"",time:"",flag:null,isGap:true,gapText:"— read at 3:31 PM, no reply —"},
+      {side:"me",text:"Hey is everything okay?",time:"Tue 10:15 AM",flag:null},
+      {side:"them",text:"Omg sorry I'm SO bad at texting lol, yes still on!",time:"Tue 6:45 PM",flag:{name:"Casual Disregard",desc:"Leaving messages on read for days then laughing it off — 'bad at texting' is often selective and communicates low priority."}},
+    ],
+    flags:[
+      {name:"Casual Disregard",desc:"Consistently reading and ignoring messages then laughing it off signals you're not a priority — 'bad at texting' is often selective."},
+    ]
+  },
+  {
+    name:"Social Media Jealousy",contact:"Tyler",emoji:"📲",
+    messages:[
+      {side:"them",text:"Who's the guy that commented fire emojis on your photo",time:"Fri 7:14 PM",flag:{name:"Comment Policing",desc:"Monitoring and interrogating who interacts with your posts is digital jealousy — a form of control over your online presence."}},
+      {side:"me",text:"Just someone from uni, I barely know him",time:"7:20 PM",flag:null},
+      {side:"them",text:"Can you delete it",time:"7:21 PM",flag:{name:"Content Control",desc:"Asking you to delete other people's comments on your own content is controlling your public space."}},
+      {side:"me",text:"That's a bit much no?",time:"7:22 PM",flag:null},
+      {side:"them",text:"I just don't want people thinking you're available",time:"7:23 PM",flag:{name:"Ownership Signalling",desc:"Wanting to control how others perceive your availability — treating you as property to mark rather than a person to trust."}},
+      {side:"me",text:"I'll just make my profile private then",time:"7:25 PM",flag:null},
+      {side:"them",text:"That would actually be really respectful yeah 🙏",time:"7:26 PM",flag:{name:"Incremental Isolation",desc:"Agreeing to you making your profile private is the first step in cutting your online presence — and eventually your connections."}},
+    ],
+    flags:[
+      {name:"Comment Policing",desc:"Interrogating who interacts with your posts is digital jealousy and a form of control over your online presence."},
+      {name:"Content Control",desc:"Asking you to delete other people's comments on your own posts is controlling your public space and expression."},
+      {name:"Ownership Signalling",desc:"Wanting to control how the world perceives your availability treats you as property to mark, not a person to trust."},
+      {name:"Incremental Isolation",desc:"Agreeing to you going private begins cutting your online presence — the digital version of isolation from your support network."},
+    ]
+  },
+  {
+    name:"The Story Watcher",contact:"Kai",emoji:"👁️",
+    messages:[
+      {side:"them",text:"Saw your story. Looks like you had fun last night",time:"Sun 2:15 PM",flag:null},
+      {side:"me",text:"Yeah it was a good night! Just out with the girls",time:"2:20 PM",flag:null},
+      {side:"them",text:"You looked really good. Who were you trying to impress",time:"2:21 PM",flag:{name:"Appearance Policing",desc:"Implying you dress for others' attention rather than yourself — turns self-expression into a suspicious act."}},
+      {side:"me",text:"I wasn't trying to impress anyone?? I just got dressed",time:"2:23 PM",flag:null},
+      {side:"them",text:"I'm just saying. You don't dress like that when it's just us",time:"2:24 PM",flag:{name:"Comparative Neglect Claim",desc:"Implying you make less effort for them to create guilt — often used to restrict how you present yourself in public."}},
+      {side:"me",text:"That's not true and you know it",time:"2:25 PM",flag:null},
+      {side:"them",text:"Whatever. Didn't realise I had to compete with a girls night out 🙄",time:"2:26 PM",flag:{name:"Trivialising Your Life",desc:"Framing your friendships as competition rather than a normal part of your life — designed to make independence feel disloyal."}},
+    ],
+    flags:[
+      {name:"Appearance Policing",desc:"Implying your outfit was for someone else's attention turns self-expression into a suspicious act you have to defend."},
+      {name:"Comparative Neglect Claim",desc:"Implying you make less effort for them creates guilt and is often used to restrict how you present yourself publicly."},
+      {name:"Trivialising Your Life",desc:"Framing your friendships as competition makes independence feel disloyal — slowly making your world smaller."},
+    ]
+  },
+];
+
+let currentIdx=0,revealed=false,isTikTok=false;
+
+// ── TIKTOK MODE ──
+var tikItems=[], tikIdx=0, tikTapping=false;
+
+function getAllTikMessages(){
+  // Sort by difficulty: easy first, then medium, then hard
+  var sorted = TIK_MESSAGES.slice().sort(function(a,b){return a.difficulty-b.difficulty;});
+  return sorted;
+}
+
+
+function makeFrontScreen(){
+  var div=document.createElement('div');
+  div.className='tik-screen';
+  div.dataset.type='front';
+  div.innerHTML='<div class="tik-front"><span class="tik-front-logo">&#x1F6A9;</span><div class="tik-front-title">Can you spot a <span>red flag?</span></div><div class="tik-front-sub">We show you real texts. You decide if it is a red flag before we reveal. Can you tell the difference?</div><button class="tik-front-btn" onclick="tikAdvance(event)">Let us go &#x2192;</button><div class="tik-front-tap">Tap anywhere to start</div></div>';
+  return div;
+}
+
+function makeMsgScreen(item){
+  var div=document.createElement('div');
+  div.className='tik-screen';
+  div.dataset.type='msg';
+  div.innerHTML='<div class="tik-msg-wrap"><div class="tik-msg-header"><div class="tik-av">'+(item.emoji||item.contact[0])+'</div><div><div class="tik-name">'+item.contact+'</div><div class="tik-status">Active now</div></div></div><div class="tik-bubble-wrap"><div class="tik-bubble-text">'+item.text+'</div><div class="tik-bubble-time">'+item.time+'</div></div><div class="tik-tap-hint">tap to continue</div></div>';
+  return div;
+}
+
+function makeDebateScreen(item){
+  var div=document.createElement('div');
+  div.className='tik-screen';
+  div.dataset.type='debate';
+  var html='<div class="tik-debate-wrap">';
+  html+='<div class="tik-debate-flag-strip">IS THIS A RED FLAG?</div>';
+  html+='<div class="tik-debate-quote">&#x201C;'+item.text+'&#x201D;</div>';
+  html+='<div class="tik-debate-vs">';
+  html+='<div class="tik-opt tik-opt-r">&#x1F6A9;<br>Red flag</div>';
+  html+='<div class="tik-vs-divider">VS</div>';
+  html+='<div class="tik-opt tik-opt-g">&#x2705;<br>Totally fine</div>';
+  html+='</div>';
+  html+='<div class="tik-debate-arrow">&#x2B07;</div>';
+  html+='<div class="tik-debate-cta">Answer in the comments before we reveal!</div>';
+  html+='<div class="tik-debate-subcta">tap to see the answer</div>';
+  html+='</div>';
+  div.innerHTML=html;
+  return div;
+}
+
+function makeRevealScreen(item){
+  var div=document.createElement('div');
+  div.className='tik-screen';
+  div.dataset.type='reveal';
+  var cls=item.isFlag?'rf':'ok';
+  var icon=item.isFlag?'&#x1F6A9;':'&#x2705;';
+  var verdict=item.isFlag?'Red Flag!':'Not a Red Flag';
+  var detail=item.isFlag?'<div class="tik-reveal-flagname">'+item.flagName+'</div><div class="tik-reveal-desc">'+item.flagDesc+'</div>':'<div class="tik-reveal-ok-desc">Totally normal — not everything is a red flag. Keep your eyes on the real patterns.</div>';
+  div.innerHTML='<div class="tik-reveal-wrap '+cls+'"><span class="tik-reveal-big">'+icon+'</span><div class="tik-reveal-verdict">'+verdict+'</div>'+detail+'<div class="tik-next-cta">tap for next</div></div>';
+  return div;
+}
+
+function tikUpdateProgress(){
+  var total=tikItems.length;
+  var msgCount=0,doneCount=0;
+  // count reveal screens done
+  var fills=Math.floor(tikIdx/3); // front+msg+debate+reveal = 4 per item, idx 0=front
+  var pct=tikIdx===0?0:Math.min(100,Math.round(((tikIdx-1)/3)/total*100));
+  var fill=document.getElementById('tikProgFill');
+  if(fill) fill.style.width=pct+'%';
+  var ctr=document.getElementById('tikCounter');
+  if(ctr){
+    var itemNum=tikIdx===0?0:Math.min(total,Math.ceil((tikIdx)/3));
+    if(tikIdx===0) ctr.textContent='';
+    else ctr.textContent=itemNum+' / '+total;
+  }
+}
+
+function tikAdvance(e){
+  if(e){e.stopPropagation();}
+  if(tikTapping) return;
+  tikTapping=true;
+  setTimeout(function(){tikTapping=false;},350);
+
+  var deck=document.getElementById('tikDeck');
+  var cur=deck.querySelector('.tik-screen:not(.hidden):not(.exit)');
+  if(cur) cur.classList.add('exit');
+  setTimeout(function(){if(cur&&cur.parentNode)cur.parentNode.removeChild(cur);},320);
+
+  tikIdx++;
+
+  // build next screen
+  var next=null;
+  if(tikIdx===0){
+    next=makeFrontScreen();
+  } else {
+    var phase=(tikIdx-1)%3; // 0=msg,1=debate,2=reveal
+    var itemIdx=Math.floor((tikIdx-1)/3);
+    if(itemIdx>=tikItems.length){
+      // end screen
+      next=document.createElement('div');
+      next.className='tik-screen hidden';
+      next.innerHTML = getEndScreenHtml();
+    } else {
+      var item=tikItems[itemIdx];
+      if(phase===0) next=makeMsgScreen(item);
+      else if(phase===1) next=makeDebateScreen(item);
+      else next=makeRevealScreen(item);
+    }
+  }
+
+  if(next){
+    next.classList.add('hidden');
+    deck.appendChild(next);
+    setTimeout(function(){ next.classList.remove('hidden'); }, 20);
+    next.addEventListener('click', function(e){tikAdvance(e);});
+  }
+  tikUpdateProgress();
+}
+
+function getEndScreenHtml(){
+  return '<div class="tik-front" style="text-align:center">'
+    +'<span style="font-size:56px;display:block;margin-bottom:16px;">&#x1F3C6;</span>'
+    +'<div class="tik-front-title">That is all for now!</div>'
+    +'<div class="tik-front-sub" style="margin-bottom:32px;">Share your score and follow for daily red flag content!</div>'
+    +'<button class="tik-front-btn" onclick="setMode(normalStr)">Back to all scenarios</button>'
+    +'</div>';
+}
+var normalStr = 'normal';
+
+// SITUATIONSHIP VIRAL SEQUENCE
+var SITU_SEQ = [
+  {t:'scene', name:'Jordan', emo:'question', txt:'Can we talk about what we are?', note:'You sent this after 3 months.'},
+  {t:'interrupt', q:'3 months. No label. No conversation.', sub:'Keep that in mind as you read.'},
+  {t:'msg', name:'Jordan', emo:'question', txt:'Why do we need a label? Can we not just enjoy this?'},
+  {t:'interrupt', q:'Reasonable... or dodging?', sub:'Answer in the comments before we continue.'},
+  {t:'msg', name:'Jordan', emo:'question', txt:'I just do not want to put pressure on something good'},
+  {t:'interrupt', q:'Sweet... or convenient?', sub:'Who does this actually protect?'},
+  {t:'msg', name:'Jordan', emo:'question', txt:'You are overthinking this. I am here, are I not?'},
+  {t:'decision', q:'Who is actually the problem here?', opts:['A - Jordan is avoiding commitment','B - You are being too intense','C - Both need to communicate better'], cta:'Answer in the comments before we reveal!'},
+  {t:'msg', name:'Jordan', emo:'question', txt:'Do what you want I guess'},
+  {t:'interrupt', q:'That message. Innocent... or calculated?', sub:'Tap to see what this pattern really is.'},
+  {t:'verdict', title:'Commitment avoidance with plausible deniability', body:'Every response was technically reasonable. That is the point. This is not gaslighting - it is something more subtle: keeping you invested while keeping the exit open. The label is not the problem. The refusal to even discuss it is.', tags:[{txt:'Pattern of avoidance',c:'r'},{txt:'Emotional ambiguity',c:'a'},{txt:'Not your fault',c:'g'},{txt:'Your feelings are valid',c:'g'}], cta:'Did you see it coming? Tell us in the comments below'}
+];
+
+function buildSituScreen(item){
+  var div=document.createElement('div');
+  div.className='tik-screen';
+  var h='';
+  if(item.t==='scene'){
+    h='<div class="tik-msg-wrap">';
+    h+='<div style="text-align:center;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.2em;color:rgba(255,255,255,.3);text-transform:uppercase;margin-bottom:20px;">SITUATIONSHIP</div>';
+    h+='<div class="tik-msg-header"><div class="tik-av" style="background:linear-gradient(135deg,#9b59b6,#6c3483);">J</div>';
+    h+='<div><div class="tik-name">'+item.name+'</div><div class="tik-status">3 months of almost-dating</div></div></div>';
+    h+='<div class="tik-bubble-wrap"><div class="tik-bubble-text">'+item.txt+'</div></div>';
+    h+='<div style="font-size:14px;color:rgba(255,255,255,.3);margin-top:14px;text-align:center;">'+item.note+'</div>';
+    h+='</div><div class="tik-tap-hint">tap to continue</div>';
+  } else if(item.t==='msg'){
+    h='<div class="tik-msg-wrap">';
+    h+='<div class="tik-msg-header"><div class="tik-av" style="background:linear-gradient(135deg,#9b59b6,#6c3483);">J</div>';
+    h+='<div><div class="tik-name">'+item.name+'</div><div class="tik-status">Active now</div></div></div>';
+    h+='<div class="tik-bubble-wrap"><div class="tik-bubble-text">'+item.txt+'</div></div>';
+    h+='</div><div class="tik-tap-hint">tap to continue</div>';
+  } else if(item.t==='interrupt'){
+    h='<div class="tik-flash-overlay" id="tikFlashOverlay"></div>';
+    h+='<div class="tik-interrupt-wrap">';
+    h+='<div class="tik-interrupt-bar">&#x23F8; PAUSE</div>';
+    h+='<div class="tik-interrupt-q">'+item.q+'</div>';
+    h+='<div class="tik-interrupt-sub">'+item.sub+'</div>';
+    h+='</div><div class="tik-tap-hint">tap to continue</div>';
+  } else if(item.t==='decision'){
+    h='<div class="tik-decision-wrap">';
+    h+='<div class="tik-decision-bar">YOUR VERDICT</div>';
+    h+='<div class="tik-decision-q">'+item.q+'</div>';
+    h+='<div class="tik-decision-opts" id="situDecisionOpts">';
+    for(var i=0;i<item.opts.length;i++){
+      var letter=String.fromCharCode(65+i);
+      h+='<div class="tik-decision-opt" onclick="pickSituChoice(event,\''+letter+'\')">'+item.opts[i]+'</div>';
+    }
+    h+='</div>';
+    h+='<div class="tik-decision-cta">'+item.cta+'</div>';
+    h+='<div class="tik-decision-sub" id="situDecisionHint">tap your answer above</div>';
+    h+='</div>';
+  } else if(item.t==='verdict'){
+    var gotIt = userChoice===correctChoice;
+    var scoreHtml = userChoice
+      ? (gotIt
+          ? '<div style="font-family:var(--font-display);font-size:22px;font-weight:900;color:var(--green);margin-bottom:16px;">You clocked it &#x1F44F;</div>'
+          : '<div style="font-family:var(--font-display);font-size:22px;font-weight:900;color:var(--red);margin-bottom:16px;">You missed it &#x1F440;</div>')
+      : '';
+    h='<div class="tik-verdict-wrap">';
+    h+=scoreHtml;
+    h+='<div class="tik-verdict-title">'+item.title+'</div>';
+    h+='<div class="tik-verdict-body">'+item.body+'</div>';
+    h+='<div class="tik-verdict-tags">';
+    for(var i=0;i<item.tags.length;i++){h+='<div class="tik-verdict-tag '+item.tags[i].c+'">'+item.tags[i].txt+'</div>';}
+    h+='</div>';
+    h+='<div class="tik-verdict-cta">'+item.cta+'</div>';
+    h+='<div style="margin-top:20px;display:flex;gap:10px;justify-content:center;">';
+    h+='<div style="flex:1;max-width:160px;padding:16px;border-radius:14px;background:rgba(255,59,59,.12);border:1.5px solid rgba(255,59,59,.3);text-align:center;font-weight:900;font-size:17px;color:#ff6b6b;">Would you stay?&#x1F914;</div>';
+    h+='<div style="flex:1;max-width:160px;padding:16px;border-radius:14px;background:rgba(0,214,143,.08);border:1.5px solid rgba(0,214,143,.25);text-align:center;font-weight:900;font-size:17px;color:#00d68f;">I would leave&#x1F6AA;</div>';
+    h+='</div>';
+    h+='</div><div class="tik-tap-hint">tap for next</div>';
+  }
+  div.innerHTML=h;
+  return div;
+}
+
+var situIdx=-1;
+var userChoice=null;
+var correctChoice="A";
+function initSituationship(){
+  situIdx=-1;
+  var deck=document.getElementById('tikDeck');
+  deck.innerHTML='';
+  advanceSitu();
+}
+
+function pickSituChoice(e, choice){
+  e.stopPropagation();
+  userChoice = choice;
+  // highlight selected
+  var opts = document.querySelectorAll('#situDecisionOpts .tik-decision-opt');
+  opts.forEach(function(o,i){
+    var letter = String.fromCharCode(65+i);
+    o.style.borderColor = letter===choice ? '#e07000' : 'rgba(255,255,255,.12)';
+    o.style.background = letter===choice ? 'rgba(224,112,0,.15)' : 'rgba(255,255,255,.05)';
+    o.style.color = letter===choice ? '#ff9a4d' : 'rgba(255,255,255,.75)';
+  });
+  var hint = document.getElementById('situDecisionHint');
+  if(hint){ hint.textContent = 'tap anywhere to reveal'; hint.style.color='rgba(255,255,255,.5)'; }
+}
+
+function advanceSitu(){
+  if(tikTapping)return;
+  tikTapping=true;
+  setTimeout(function(){tikTapping=false;},350);
+  var deck=document.getElementById('tikDeck');
+  var cur=deck.querySelector('.tik-screen:not(.hidden):not(.exit)');
+  if(cur){cur.classList.add('exit');setTimeout(function(){if(cur&&cur.parentNode)cur.parentNode.removeChild(cur);},320);}
+  situIdx++;
+  if(situIdx>=SITU_SEQ.length){
+    tikIdx=-1;
+    tikAdvance(null);
+    return;
+  }
+  var next=buildSituScreen(SITU_SEQ[situIdx]);
+  next.classList.add('hidden');
+  deck.appendChild(next);
+  setTimeout(function(){
+    next.classList.remove('hidden');
+    if(SITU_SEQ[situIdx].t==='interrupt'){
+      next.classList.add('interrupt-active');
+      var flash=next.querySelector('#tikFlashOverlay');
+      if(flash){
+        flash.style.animation='tikFlash .6s ease forwards';
+        setTimeout(function(){flash.style.animation='';},700);
+      }
+    }
+  },20);
+  next.addEventListener('click',function(e){e.stopPropagation();advanceSitu();});
+  var fill=document.getElementById('tikProgFill');
+  if(fill)fill.style.width=Math.round(((situIdx+1)/SITU_SEQ.length)*100)+'%';
+  var ctr=document.getElementById('tikCounter');
+  if(ctr)ctr.textContent=(situIdx+1)+' / '+SITU_SEQ.length;
+}
+
+function initTikMode(){
+  tikItems=getAllTikMessages();
+  tikIdx=-1;
+  var deck=document.getElementById('tikDeck');
+  deck.innerHTML='';
+  tikAdvance(null); // show front page
+}
+
+function hideReveal(){
+  document.getElementById('revealPanel').classList.remove('show');
+  var rb=document.getElementById('revealBtn');if(rb)rb.style.display='';
+  var ov=document.querySelector('.tiktok-overlay');if(ov){ov.style.opacity='1';ov.style.pointerEvents='';}
+}
+
+function setMode(mode){
+  isTikTok=(mode==='tiktok');
+  document.body.classList.toggle('tiktok-mode',isTikTok);
+  document.querySelectorAll('.mode-btn').forEach(function(b,i){b.classList.toggle('active',(i===0&&!isTikTok)||(i===1&&isTikTok));});
+  if(isTikTok){window.scrollTo(0,0);initTikMode();}
+}
+
+
+function buildScenarioPicker(){
+  const grid=document.getElementById('scenarioGrid');
+  SCENARIOS.forEach((s,i)=>{
+    const btn=document.createElement('button');
+    btn.className='scenario-btn'+(i===0?' active':'');
+    btn.innerHTML=`<span class="emoji">${s.emoji}</span>${s.name}`;
+    btn.onclick=()=>loadScenario(i);
+    grid.appendChild(btn);
+  });
+}
+
+function loadScenario(idx){
+  currentIdx=idx;revealed=false;
+  const s=SCENARIOS[idx];
+  document.querySelectorAll('.scenario-btn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  document.getElementById('contactName').textContent=s.contact;
+  document.getElementById('avatarInitial').textContent=s.contact[0];
+  const chat=document.getElementById('chatArea');
+  chat.innerHTML='';
+  s.messages.forEach((msg,i)=>{
+    if(msg.isGap){
+      const d=document.createElement('div');d.className='chat-divider';d.textContent=msg.gapText;chat.appendChild(d);return;
+    }
+    const d=document.createElement('div');
+    d.className='msg '+msg.side;
+    d.style.animationDelay=(i*0.07)+'s';
+    d.innerHTML=`<div class="bubble">${msg.text}</div>${msg.time?`<div class="msg-time">${msg.time}</div>`:''}`;
+    chat.appendChild(d);
+  });
+  document.getElementById('revealPanel').classList.remove('show');
+  ['revealBtn','tikRevealBtn'].forEach(id=>{
+    const b=document.getElementById(id);
+    if(b){b.textContent=id==='tikRevealBtn'?'Reveal 🚩':'Reveal the red flags →';b.style.background='';b.style.cursor='';}
+  });
+  document.getElementById('counter').textContent=`Scenario ${idx+1} of ${SCENARIOS.length}`;
+}
+
+function toggleReveal(){
+  if(revealed)return;
+  revealed=true;
+  const s=SCENARIOS[currentIdx];
+  const msgs=document.querySelectorAll('.msg');
+  let mIdx=0;
+  s.messages.forEach(msgData=>{
+    if(msgData.isGap)return;
+    const el=msgs[mIdx];
+    if(el&&msgData.flag){
+      el.classList.add('flagged');
+      const badge=document.createElement('div');
+      badge.className='flag-badge';
+      badge.innerHTML=`🚩 ${msgData.flag.name}`;
+      const bubble=el.querySelector('.bubble');if(bubble)bubble.insertAdjacentElement('afterend',badge);else el.appendChild(badge);
+    }
+    mIdx++;
+  });
+  const count=s.flags.length;
+  const emojis='🚩'.repeat(count);
+  const level=count>=3?{text:'High risk — run 🏃',color:'#ff3b3b'}:{text:'Concerning pattern',color:'#ffb627'};
+  document.getElementById('scoreBar').innerHTML=`
+    <div><div style="font-size:18px;letter-spacing:2px;">${emojis}</div></div>
+    <div><div class="score-text" style="color:${level.color}">${count} Red Flag${count>1?'s':''} Found</div><div class="score-sub">${level.text}</div></div>`;
+  const list=document.getElementById('flagList');
+  list.innerHTML='';
+  s.flags.forEach((f,i)=>{
+    const item=document.createElement('div');
+    item.className='flag-item';
+    item.innerHTML=`<div class="flag-num">${i+1}</div><div><div class="flag-name">🚩 ${f.name}</div><div class="flag-desc">${f.desc}</div></div>`;
+    list.appendChild(item);
+  });
+  document.getElementById('revealPanel').classList.add('show');
+  ['revealBtn','tikRevealBtn'].forEach(id=>{
+    const b=document.getElementById(id);
+    if(b){b.textContent='✓ Revealed';b.style.background='#333';b.style.cursor='default';}
+  });
+  setTimeout(()=>window.scrollTo({top:0,behavior:'smooth'}),200);
+}
+
+function nextScenario(){
+  loadScenario((currentIdx+1)%SCENARIOS.length);
+  if(isTikTok)window.scrollTo(0,0);
+}
+
+
+// BIG TIK MESSAGES BANK
+const TIK_MESSAGES = [
+  {text:"I have never felt this way about anyone. You are my soulmate and I have only known you 3 days.",contact:"Alex",emoji:"💣",isFlag:true,flagName:"Love Bombing",flagDesc:"Overwhelming you with intensity this early creates fake intimacy before you can properly evaluate someone.",difficulty:1},
+  {text:"Other girls would kill to be with someone like me. Just saying.",contact:"Jordan",emoji:"🚩",isFlag:true,flagName:"Entitlement and Comparison",flagDesc:"Using comparison to pressure you is a manipulation tactic. Healthy partners never hold themselves over you.",difficulty:1},
+  {text:"If you really loved me you would cancel your plans and come over right now.",contact:"Tyler",emoji:"🔒",isFlag:true,flagName:"Emotional Blackmail",flagDesc:"Tying love to compliance is not love. Real love does not come with ultimatums.",difficulty:1},
+  {text:"Who was that guy who liked your photo? I need his name.",contact:"Morgan",emoji:"🌀",isFlag:true,flagName:"Jealous Surveillance",flagDesc:"Monitoring your social media and demanding explanations for innocent interactions is controlling behaviour.",difficulty:1},
+  {text:"I am not angry, I am just disappointed. You always do this.",contact:"Casey",emoji:"🎭",isFlag:true,flagName:"Guilt Tripping",flagDesc:"Always and disappointed are classic guilt-trip words designed to make you feel permanently at fault.",difficulty:1},
+  {text:"You are so lucky to have me. Most people would not put up with your baggage.",contact:"River",emoji:"🌡️",isFlag:true,flagName:"Negging",flagDesc:"Disguising an insult as a compliment to make you feel grateful rather than questioning their behaviour.",difficulty:1},
+  {text:"I need you to delete that male friend from Instagram. He is inappropriate.",contact:"Sam",emoji:"🔒",isFlag:true,flagName:"Isolation Tactic",flagDesc:"Demanding you cut off friends is how control escalates. It starts with one person, then another.",difficulty:1},
+  {text:"Fine. Go out. I will just sit here alone. It is fine. Really.",contact:"Jamie",emoji:"🎭",isFlag:true,flagName:"Passive Aggression",flagDesc:"Guilt-tripping through fake martyrdom. This is designed to make you feel responsible for their emotions.",difficulty:1},
+  {text:"We should make it official. I know we have only been on two dates but why wait?",contact:"Alex",emoji:"💣",isFlag:true,flagName:"Rushing Commitment",flagDesc:"Pressure to commit before you have properly evaluated someone bypasses your natural judgement.",difficulty:1},
+  {text:"You are so sensitive. I was just joking. You need to lighten up.",contact:"Jordan",emoji:"🌀",isFlag:true,flagName:"Dismissing Your Feelings",flagDesc:"Labelling your reaction as too sensitive is gaslighting. It invalidates your completely valid response.",difficulty:1},
+  {text:"I never said I would be there at 8. I said around evening. You always twist my words.",contact:"Morgan",emoji:"🌀",isFlag:true,flagName:"Gaslighting",flagDesc:"Rewriting agreed facts to make you question your own memory is a core manipulation tactic.",difficulty:2},
+  {text:"You know how I feel about you. I do not need to say it all the time.",contact:"River",emoji:"🌡️",isFlag:true,flagName:"Emotional Withholding",flagDesc:"Refusing to express care while expecting yours keeps you in an insecure, off-balance position.",difficulty:2},
+  {text:"I have been hurt so much in the past. I just need you to be more patient with me.",contact:"Casey",emoji:"🎭",isFlag:true,flagName:"Victim Narrative",flagDesc:"Using past trauma to excuse current behaviour puts you in the role of absorber of bad treatment.",difficulty:2},
+  {text:"I am not controlling. I just care more than other guys would.",contact:"Tyler",emoji:"🔒",isFlag:true,flagName:"Reframing Control as Love",flagDesc:"Labelling control as care is a classic manipulation. Love does not require you to shrink yourself.",difficulty:2},
+  {text:"You are overreacting. Anyone else would have laughed at that.",contact:"Sam",emoji:"🌀",isFlag:true,flagName:"Normalising Bad Behaviour",flagDesc:"Comparing your reaction to imagined others to make you feel unreasonable is a form of gaslighting.",difficulty:2},
+  {text:"My ex never had a problem with it. She trusted me.",contact:"Jamie",emoji:"🌡️",isFlag:true,flagName:"Ex Comparison",flagDesc:"Comparing you to an ex to get compliance is manipulative. Your boundaries are valid regardless.",difficulty:2},
+  {text:"You look tired. Have you been eating properly? You are getting a bit puffy.",contact:"Alex",emoji:"🚩",isFlag:true,flagName:"Appearance Negging",flagDesc:"Unsolicited negative comments about your appearance dressed as concern are designed to lower your confidence.",difficulty:2},
+  {text:"I read your messages. I know you said it was wrong but I was worried about you.",contact:"Morgan",emoji:"🔒",isFlag:true,flagName:"Privacy Violation",flagDesc:"Reading your private messages without consent, however it is framed, is a serious breach of trust.",difficulty:2},
+  {text:"I do not like your friend Lucy. I think she is a bad influence on you.",contact:"Tyler",emoji:"🔒",isFlag:true,flagName:"Isolating from Friends",flagDesc:"Creating wedges between you and your support network is a gradual control tactic.",difficulty:2},
+  {text:"You made me do this. If you had just listened I would not have reacted that way.",contact:"Casey",emoji:"🌀",isFlag:true,flagName:"Blame Shifting",flagDesc:"Holding you responsible for their reaction removes their accountability and puts you on the defensive.",difficulty:2},
+  {text:"I was going to tell you but I did not want to upset you. I was protecting you.",contact:"Jordan",emoji:"🎭",isFlag:true,flagName:"Paternalistic Deception",flagDesc:"Deciding what you can handle is patronising. Honesty is the foundation of real trust.",difficulty:2},
+  {text:"You are so lucky I put up with your moods. Other guys would have walked by now.",contact:"River",emoji:"🚩",isFlag:true,flagName:"Conditional Affection",flagDesc:"Making you feel fortunate to be tolerated conditions you to accept bad treatment as the norm.",difficulty:2},
+  {text:"After everything I have done for you, this is how you treat me?",contact:"Jamie",emoji:"🎭",isFlag:true,flagName:"Debt Leverage",flagDesc:"Using past acts of kindness as leverage is transactional. Real care does not come with a bill.",difficulty:2},
+  {text:"I just think you would be happier if you did not spend so much time with your family.",contact:"Alex",emoji:"🔒",isFlag:true,flagName:"Subtle Isolation",flagDesc:"Framing isolation as being for your benefit is one of the most dangerous forms of control.",difficulty:3},
+  {text:"I am not angry. I am just thinking about whether this relationship is worth it.",contact:"Morgan",emoji:"🌀",isFlag:true,flagName:"Silent Punishment",flagDesc:"Using withdrawal and threats to leave as punishment keeps you in a state of anxiety and compliance.",difficulty:3},
+  {text:"I love you so much it scares me. I think I would do anything to keep you.",contact:"Tyler",emoji:"💣",isFlag:true,flagName:"Possessive Love",flagDesc:"Framing obsession as love can feel flattering but signals an unhealthy attachment that becomes controlling.",difficulty:3},
+  {text:"You have changed since you started that new job. I miss the old you.",contact:"Casey",emoji:"🌡️",isFlag:true,flagName:"Undermining Growth",flagDesc:"Framing your independence or success as a problem is a sign they prefer you smaller.",difficulty:3},
+  {text:"I do not need you to go out with your friends. I am all you need, right?",contact:"River",emoji:"🔒",isFlag:true,flagName:"Dependency Creation",flagDesc:"Encouraging you to rely solely on them removes your independence and support network over time.",difficulty:3},
+  {text:"You are the only person who has ever understood me. I cannot imagine existing without you.",contact:"Jamie",emoji:"💣",isFlag:true,flagName:"Emotional Enmeshment",flagDesc:"Making you responsible for their emotional survival is a pressure that becomes suffocating over time.",difficulty:3},
+  {text:"I know you said no but I thought once we got there you would be fine. I know you better than you know yourself.",contact:"Alex",emoji:"🚩",isFlag:true,flagName:"Overriding Consent",flagDesc:"Deciding they know your needs better than you do is a serious red flag that escalates over time.",difficulty:3},
+  {text:"Do not tell your friends about our argument. What happens between us stays between us.",contact:"Morgan",emoji:"🔒",isFlag:true,flagName:"Secrecy Demand",flagDesc:"Cutting you off from outside perspective is how unhealthy dynamics get maintained.",difficulty:3},
+  {text:"I just think you are too good for most of your friends. You deserve people on your level.",contact:"Tyler",emoji:"🔒",isFlag:true,flagName:"Flattery Isolation",flagDesc:"Using flattery to isolate is more dangerous than direct criticism. It feels like a compliment.",difficulty:3},
+  {text:"You always take everyone else's side. Even strangers over me. That is not love.",contact:"River",emoji:"🌡️",isFlag:true,flagName:"Loyalty Framing",flagDesc:"Redefining love as unconditional agreement makes you feel guilty for having independent thought.",difficulty:3},
+  {text:"I have sacrificed so much for you. The least you can do is this one thing.",contact:"Sam",emoji:"🎭",isFlag:true,flagName:"Martyrdom Manipulation",flagDesc:"Keeping a tally of sacrifices to extract compliance. Real love does not keep score.",difficulty:3},
+  {text:"Hey, I know you had a rough day. I will not take it personally if you need space tonight.",contact:"Sam",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"I am sorry I snapped earlier. That was on me, not you.",contact:"Jamie",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"You should definitely go on that trip with your friends. You deserve it.",contact:"Alex",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"I missed you today. Hope your meeting went well.",contact:"Jordan",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"No pressure on tonight. If you are tired we can reschedule, honestly fine.",contact:"Morgan",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"I want to hear your side of it before I say anything.",contact:"Tyler",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"Your job opportunity sounds amazing. I think you should go for it even if it is far.",contact:"Casey",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"I do not agree but I understand why you feel that way.",contact:"River",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"Spend as much time with your family as you need. I will be here.",contact:"Sam",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"I messed up and I own that. What can I do to make it right?",contact:"Jamie",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:1},
+  {text:"You seemed off earlier. Do you want to talk or would you rather I just listen?",contact:"Alex",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"I got us those tickets but if you have already made plans, let us do it another time.",contact:"Jordan",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"I think you should keep going to therapy. It seems to be really helping you.",contact:"Morgan",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"I know I came across too strong last week. I have been thinking about it.",contact:"Tyler",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"I love that you are close with your friends. It makes me feel good that you have that.",contact:"Casey",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"You do not have to explain yourself to me. I trust you.",contact:"River",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"I noticed you were quiet at dinner. No pressure but I am here if something is up.",contact:"Sam",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"Take the job. We will figure out the distance thing together.",contact:"Jamie",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"I am proud of how far you have come. Genuinely.",contact:"Alex",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"I was wrong to push you on that. Your boundary makes complete sense.",contact:"Jordan",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:2},
+  {text:"I like that you challenge me. It is one of my favourite things about you.",contact:"Morgan",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"I do not need you to agree with me. I just want to understand you better.",contact:"Tyler",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"You were right and I was not listening. I am sorry. What do you need from me now?",contact:"Casey",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"Your success is not a threat to me. I want you to fly.",contact:"River",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"I have been thinking about what you said and I think you had a fair point.",contact:"Sam",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"Please do not apologise. You did not do anything wrong by having feelings.",contact:"Jamie",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"I know we have only been talking two weeks but I really like you and I wanted to say it.",contact:"Alex",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"I am not going to lie, I got a bit jealous seeing that. But that is my issue not yours.",contact:"Jordan",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"Can we talk tonight? There is something on my mind and I would rather say it than bottle it.",contact:"Morgan",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"I miss you like crazy but I do not want to crowd you. Let me know when you are free.",contact:"Tyler",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+  {text:"I want to introduce you to my friends soon. No pressure, just so you know I am not hiding you.",contact:"Casey",emoji:"💚",isFlag:false,flagName:"",flagDesc:"",difficulty:3},
+];
+
+buildScenarioPicker();
+loadScenario(0);
+</script>
+<div id="tikSwipe">
+  <div class="tik-prog-bar"><div class="tik-prog-fill" id="tikProgFill"></div></div>
+  <div class="tik-counter" id="tikCounter"></div>
+  <button class="tik-exit-btn" onclick="setMode('normal')">&#x2715; Exit</button>
+  <div id="tikDeck"></div>
+</div>
+</body>
+</html>
